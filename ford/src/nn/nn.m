@@ -6,7 +6,7 @@ endfunction
 
 function ti = nn_get_eval_set(ds)
   # ti the training set input, output values
-  ncols = size(ds)(2) - 11; # remove vehicle
+  ncols = size(ds)(2);
   nelems = ncols - 3;
   # transposed
   ti = ds(2:size(ds)(1), 4:ncols);
@@ -15,9 +15,9 @@ endfunction
 
 function [ti, to] = nn_get_training_sets(ds)
   # ti, to the training set input, output values
-  ncols = size(ds)(2) - 11; # remove vehicle
+  ncols = size(ds)(2);
   nelems = ncols - 3;
-  rows = find(ds(2:size(ds)(1),2)<20);
+  rows = find(ds(2:size(ds)(1),2)<200);
 
   # transposed
   ti = ds(rows, 4:ncols);
