@@ -1,0 +1,62 @@
+. input data
+ . trial id: a trial on one observer
+ . 1210 samples of different sources taken every 100 ms (~2min)
+  . this can be viewed as a signal
+  . important signals: 3 (alert or not)
+ . csv format
+  . rows contains the samples at a given time for a given trial
+  . next row contains the samples at t+1
+  . groups of 1210 rows
+
+. some rules
+ . using futur values from alertness to predict past alertness
+ values is not allowed, since it is not casual
+
+. clasification
+ . initial/instantaneous mode
+  . used to determine alertness when there is no past values
+  . should be able for a given T to tell what is the value of alert(T)
+   . based on all the important signals, clusterise according to trained set
+   . neural net? -> input
+
+. single signal information
+ . the more we are disturb, the more we are alert
+ . the more we stay alert, the more likely we are to become not alert
+
+. signal correlation
+ . finding the interesting signals
+  . consider the alert signal (3) as being the reference one
+  . question: find the signal best matching the alert signal
+  . candidates: signal 4
+  . plot the DCT of both signal, or something equivalent
+  . plot spectrograms
+  . signals derivative best macthing the reference
+ . how much the signal groups contribute to the data
+ . take into account the fact there is a phase between some
+ signal and isAlert(t)
+  -> because we are becoming alert
+
+. octave
+ . plot the signal 15 in time in time for trial0
+  . data = csvread('/home/texane/dl/fordTrain.csv');
+  . subplot(2, 1, 1)
+  . plot(data(1:1210,15))
+  . subplot(2, 1, 2)
+  . plot(data(1:1210,3)) % alert signal
+
+ . signal derivative
+  . subplot(3, 1, 1); plot(data(2*(1:1210),4));
+  . subplot(3, 1, 2); plot(diff(data(2*(1:1200),4)));
+  . subplot(3, 1, 3); plot(data(2*(1:1210),3));
+
+. analyse du signal 20
+ . une analyse stat montre que le signal 20 signal maximise
+ le instantaneous score alert (68%)
+ . si on regarde le comportement de s20, on deduit ce qui suit:
+  lorsqu il y a un changement d etat du signal alert ET qu il y a
+  un changement d etat dans s20, alors le prochain changement d etat
+  de alert se fera avec le changement d etat de s20
+
+. determination instantanee de la valeur de alert
+ . ie. pas de memoire, de sample dans le passee
+ . il faut entrainer un systeme

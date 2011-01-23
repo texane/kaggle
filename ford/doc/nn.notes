@@ -1,0 +1,18 @@
+. neural networks
+
+. ce a quoi on s attend
+ . plus on avance dans le temps, moins on a de bons resultats
+  -> le reseau de neurones agit comme une fonction instantanee, pas
+  de memoire. il faudrait le reentrainer a chaque nouvelle input
+ . pour le moment, il n est utilise que pour les entrees t == 0
+
+. todos
+ . petit papier (implementation matlab)
+ . entrainer differement le reseau (plus de couches, fonctions de transferts...)
+ . mieux utiliser les poids: determiner les poids des neurones en input
+  . utiliser une analyse a priori pour savoir qui contribue le plus et ajuster les poids
+ . git repo
+
+. reference
+ . http://leenissen.dk/fann/
+ . http://www.plexso.com/61_octave/index.html
