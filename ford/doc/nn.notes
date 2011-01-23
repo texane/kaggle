@@ -6,6 +6,9 @@
   de memoire. il faudrait le reentrainer a chaque nouvelle input
  . pour le moment, il n est utilise que pour les entrees t == 0
 
+. observations
+ . en retirant les 11 capteurs du vehicule, on a de meilleurs resultats
+
 . todos
  . petit papier (implementation matlab)
  . entrainer differement le reseau (plus de couches, fonctions de transferts...)

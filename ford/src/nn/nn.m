@@ -1,24 +1,23 @@
-function [ti, to] = nn_get_eval_sets(ds, count)
-  # ti, to the training set input, output values
-  ncols = size(ds)(2);
+function ts = nn_get_testing_set(ds)
+  # get a subset for testing
+  ts = find(ds(:,2)==2);
+  ts = resize(ts, 100, size(ts)(2));
+endfunction
+
+function ti = nn_get_eval_set(ds)
+  # ti the training set input, output values
+  ncols = size(ds)(2) - 11; # remove vehicle
   nelems = ncols - 3;
-  rows = find(ds(:,2)==2); # second trial
-
-  if count > size(rows)(1) count = size(rows)(1) end
-  rows = rows(1:count,:);
-
   # transposed
-  ti = ds(rows, 4:ncols);
-  to = ds(rows, 3);
+  ti = ds(2:size(ds)(1), 4:ncols);
   ti = ti';
-  to = to';
 endfunction
 
 function [ti, to] = nn_get_training_sets(ds)
   # ti, to the training set input, output values
-  ncols = size(ds)(2);
+  ncols = size(ds)(2) - 11; # remove vehicle
   nelems = ncols - 3;
-  rows = find(ds(:,2)==0);
+  rows = find(ds(2:size(ds)(1),2)<20);
 
   # transposed
   ti = ds(rows, 4:ncols);
@@ -52,6 +51,9 @@ function [nn, mean, std] = nn_train(ds)
   net.b{1,1}(:) = 1.5;
   net.b{2,1}(:) = 0.5;
 
+  # disable plotting
+  net.trainParam.show = NaN;
+
   # define validation data new, for matlab compatibility
   VV.P = ti;
   VV.T = to;
@@ -69,19 +71,38 @@ endfunction
 function outs = nn_eval(nn, mean, std, ds)
   # nn the neural network from nn_train
   # simin the simulation input
-  [ti, to] = nn_get_eval_sets(ds, 100);
+  ti = nn_get_eval_set(ds);
   [mTestInputN] = trastd(ti, mean, std);
   [simout] = sim(nn, mTestInputN);
-  rows = size(to)(2);
-  outs = zeros(rows, 3);
+  rows = size(ti)(2);
+  outs = zeros(rows, 1);
   for i = 1:rows
     value = simout(1,i);
-    outs(i,1) = value;
     if value < 0.5 value = 0.0;
     else value = 1.0; end
-    outs(i,2) = value;
-    outs(i,3) = to(1,i);
+    outs(i) = value;
   end
-  score = length(find(outs(:,2) == outs(:,3))) / size(outs)(1);
-  printf("score == %f\n", score);
+endfunction
+
+function score = nn_score(nn, mean, std, ds)
+  # nn the trained nn
+  ts = nn_get_testing_set(ds);
+  out = nn_eval(nn, mean, std, ds);
+  isalert = ds(2:size(ds)(1),3);
+  score = 0;
+  for i = 1:size(out)(1)
+    if out(i) == isalert(i) score = score + 1; end
+  end
+  score = score / size(ds)(1);
+endfunction
+
+function nn_submit(td, res)
+  # td the test set
+  # res the results
+  file = fopen("/tmp/fu.csv", "wt");
+  fwrite(file, "TrialID,ObsNum,Prediction\n");
+  for i = 2:size(td)(1)
+    fprintf(file, "%d,%d,%d\n", td(i,1), td(i,2), res(i-1));
+  end
+  fclose(file);
 endfunction
