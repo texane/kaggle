@@ -1,3 +1,11 @@
+. todos
+ . plan d attaque
+  . general: utilisation d un reseau de neurones
+  . filtrage des samples d entree
+   . algorithme genetique: finir implementation
+   . methodes de clustering, reductions des input
+   . ce sont des signaux, voir l application du reseau de neurones sur les derivees
+
 . input data
  . trial id: a trial on one observer
  . 1210 samples of different sources taken every 100 ms (~2min)

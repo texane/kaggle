@@ -8,15 +8,17 @@
 
 . observations
  . en retirant les 11 capteurs du vehicule, on a de meilleurs resultats
+  -> ca depend la fenetre de temps
 
-. todos
  . petit papier (implementation matlab)
  . entrainer differement le reseau (plus de couches, fonctions de transferts...)
  . mieux utiliser les poids: determiner les poids des neurones en input
   . utiliser une analyse a priori pour savoir qui contribue le plus et ajuster les poids
  . on voit que plus il y a de couches, mieux c est
-  -> utiliser un nombre de neurones differents sur la seconde couche (apres soumission puis commit)
-  . ameliorer la methode d echantillonage
+ . utiliser un nombre de neurones differents sur la seconde couche (apres soumission puis commit)
+ . ameliorer la methode d echantillonage
+  . les amplitudes ne suffisent pas
+   . ce sont des signaux, beaucoup d information dans la derivee
 
 . reference
  . http://leenissen.dk/fann/
