@@ -17,7 +17,7 @@ function [ti, to] = nn_get_training_sets(ds)
   # ti, to the training set input, output values
   ncols = size(ds)(2);
   nelems = ncols - 3;
-  rows = find(ds(2:size(ds)(1),2)<200);
+  rows = find(ds(2:size(ds)(1),2)<100);
 
   # transposed
   ti = ds(rows, 4:ncols);
@@ -38,9 +38,9 @@ function [nn, mean, std] = nn_train(ds)
   [in_foo, in_mean, in_std] = prestd(ti);
 
   # hidden and output layers neurons count
-  nn_counts = [1, 1];
+  nn_counts = [5, 1];
   # layers transfer function
-  nn_funcs = {"tansig", "purelin"};
+  nn_funcs = {"tansig", "tansig", "tansig", "tansig", "tansig", "purelin"};
 
   # instanciate the network
   net = newff(min_max(in_foo), nn_counts, nn_funcs, "trainlm", "mse");
@@ -61,8 +61,6 @@ function [nn, mean, std] = nn_train(ds)
   VV.P = trastd(VV.P, in_mean, in_std);
 
   # train the network
-  size(in_foo)
-  size(to)
   [nn] = train(net, in_foo, to, [], [], VV);
   mean = in_mean;
   std = in_std;
@@ -105,4 +103,7 @@ function nn_submit(td, res)
     fprintf(file, "%d,%d,%d\n", td(i,1), td(i,2), res(i-1));
   end
   fclose(file);
+endfunction
+
+function nn_choose_net(ds)
 endfunction

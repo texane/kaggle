@@ -61,7 +61,7 @@
  . ie. pas de memoire, de sample dans le passee
  . il faut entrainer un systeme
 
-. current score: 0.80022
+. current score: 0.81928
 . commandline
  . source 'nn/nn.m'; [nn, mean, std] = nn_train(data); score = nn_score(nn, mean, std, data);
  . source 'nn/nn.m'; [nn, mean, std] = nn_train(data); outs = nn_eval(nn, mean, std, td);
