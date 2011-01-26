@@ -5,6 +5,10 @@
    . algorithme genetique: finir implementation
    . methodes de clustering, reductions des input
    . ce sont des signaux, voir l application du reseau de neurones sur les derivees
+  . l algorithme genetique pour filtrer les colonnes n est pas bon
+   . deja c est lent, de plus ca ne sort pas des resultats toujours
+   coherents
+   -> meme si ca a ete teste
 
 . input data
  . trial id: a trial on one observer

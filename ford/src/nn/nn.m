@@ -9,10 +9,16 @@ function subset = nn_get_training_subset(data, cols)
   subset = data(rows, [3 cols]); # keep the col 3 result
 endfunction
 
+function [train_set, res_set] = nn_get_training_subset2(data, cols)
+  rows = find(data(1:size(data)(1),2)<10);
+  train_set = data(rows, cols);
+  res_set = data(rows, 3);
+endfunction
+
 function [test_set, res_set] = nn_get_testing_set(data, cols)
   # get a subset for testing
-  rows = find(data(:,2)==2);
-  #rows = resize(rows, 100, size(rows)(2));
+  # rows = find(data(:,1)<100);
+  rows = find(data(:,2)==800);
   res_set = data(rows,3);
   test_set = data(rows,cols);
 endfunction
@@ -35,7 +41,7 @@ endfunction
 function train_set = nn_get_training_set(data, cols)
   # the first col contains the results
   rows = find(data(:,2)<100);
-  train_set = data(rows,[3 cols]);
+  train_set = data(rows, [3 cols]);
 endfunction
 
 function [nn, mean, std] = nn_train(data)
@@ -49,9 +55,10 @@ function [nn, mean, std] = nn_train(data)
   [in_foo, in_mean, in_std] = prestd(ti);
 
   # hidden and output layers neurons count
-  nn_counts = [4, 1];
+  # nn_counts = [10, 1];
+  nn_counts = [1, 1];
   # layers transfer function
-  nn_funcs = {"tansig", "tansig", "tansig", "tansig", "purelin"};
+  nn_funcs = {"tansig", "purelin"};
 
   # instanciate the network
   net = newff(min_max(in_foo), nn_counts, nn_funcs, "trainlm", "mse");
@@ -220,7 +227,9 @@ endfunction
 
 
 function nn_doit()
-  cols = [14 8 32 33 11 5 29 28 13 17 15 31 24 7 19 25 10 30 4 22];
+  # cols = [14 8 32 33 11 5 29 28 13 17 15 31 24 7 19 25 10 30 4 22];
+  # cols = [4:21];
+  cols = [4:33];
 
   data = nn_csvread('../../data/fordTrain.csv');
 
@@ -229,9 +238,15 @@ function nn_doit()
 
   [test_set, res_set] = nn_get_testing_set(data, cols);
   score = nn_score(nn, mean, std, test_set, res_set);
+  printf("score: %f\n", score);
 
-  submission_data = nn_csvread('../../data/fordTest.csv');
-  [submission_set, res_set] = nn_get_submission_set(submission_data, cols);
-  submission_res = nn_eval(nn, mean, std, submission_set);
-  nn_submit(submission_data, submission_res);
+  #submission_data = nn_csvread('../../data/fordTest.csv');
+  #[submission_set, res_set] = nn_get_submission_set(submission_data, cols);
+  #submission_res = nn_eval(nn, mean, std, submission_set);
+  #nn_submit(submission_data, submission_res);
+endfunction
+
+
+function nn_diff(data)
+  deriv = diff(data)
 endfunction
