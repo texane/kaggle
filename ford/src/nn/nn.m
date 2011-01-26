@@ -15,10 +15,10 @@ function [train_set, res_set] = nn_get_training_subset2(data, cols)
   res_set = data(rows, 3);
 endfunction
 
-function [test_set, res_set] = nn_get_testing_set(data, cols)
+function [test_set, res_set] = nn_get_testing_set(data, cols, tid)
+  if nargin == 2 tid = 100; end # random
   # get a subset for testing
-  # rows = find(data(:,1)<100);
-  rows = find(data(:,2)==800);
+  rows = find(data(:,1) == tid);
   res_set = data(rows,3);
   test_set = data(rows,cols);
 endfunction
@@ -38,10 +38,14 @@ function ti = nn_get_eval_set(ds)
   ti = ti';
 endfunction
 
-function train_set = nn_get_training_set(data, cols)
+function train_set = nn_get_training_set(data, cols, tids)
   # the first col contains the results
-  rows = find(data(:,2)<100);
-  train_set = data(rows, [3 cols]);
+  train_rows = [];
+  for tid = tids
+    rows = find(data(:,1)==tid);
+    train_rows = [train_rows rows'];
+  end
+  train_set = data(train_rows, [3 cols]);
 endfunction
 
 function [nn, mean, std] = nn_train(data)
@@ -226,24 +230,126 @@ function nn_choose_net(data)
 endfunction
 
 
-function nn_doit()
-  # cols = [14 8 32 33 11 5 29 28 13 17 15 31 24 7 19 25 10 30 4 22];
-  # cols = [4:21];
+function tids = gen_tids(tid_count)
+  # max number of tids
+  tid_max = 510;
+
+  # clear the tids
+  tids = [];
+
+  # generate tid_count distinct tids 
+  while tid_count
+    tid = floor(rand() * tid_max);
+
+    # add if not already present
+    is_found = 0;
+
+    for j = tids
+      if j == tid
+	is_found = 1;
+	break ;
+      end
+    end
+
+    if is_found == 0
+      tid_count = tid_count - 1;
+      tids = [tids tid];
+    end
+
+  end # tid_count
+endfunction
+
+
+function [data, nn, mean, std, cols] = nn_create_net(tids)
+  if nargin == 0
+    tids = gen_tids(100);
+  end
+
+  cols = [4:33];
+  data = nn_csvread('../../data/fordTrain.csv');
+  train_set = nn_get_training_set(data, cols, tids);
+  [nn, mean, std] = nn_train(train_set);
+endfunction
+
+
+function nn_doit(data, nn, mean, std, cols)
+  if nargin == 0
+    [data, nn, mean, std, cols] = nn_create_net();
+  end
+
+  for tid = 300:310
+    [test_set, res_set] = nn_get_testing_set(data, cols, tid);
+    score = nn_score(nn, mean, std, test_set, res_set);
+    printf("%d %f\n", tid, score);
+  end
+endfunction
+
+
+function nn_do_submit(data, nn, mean, std, cols)
+  if nargin == 0
+    [data, nn, mean, std, cols] = nn_create_net();
+  end
+
+  submission_data = nn_csvread('../../data/fordTest.csv');
+  [submission_set, res_set] = nn_get_submission_set(submission_data, cols);
+  submission_res = nn_eval(nn, mean, std, submission_set);
+  nn_submit(submission_data, submission_res);
+endfunction
+
+
+function scores = nn_do_score(data, nn, mean, std, cols, tids)
+  if nargin == 0
+    [data, nn, mean, std, cols] = nn_create_net();
+    tids = gen_tids(10);
+    cols = [4:33];
+  end
+
+  scores = [];
+  i = 1;
+  for tid = tids
+    [test_set, res_set] = nn_get_testing_set(data, cols, tid);
+    scores(i) = nn_score(nn, mean, std, test_set, res_set);
+    i = i + 1;
+  end
+endfunction
+
+
+function [nn, mean, std] = nn_do_train(data)
+  # generate a random set of N tids
+  train_tids = gen_tids(30);
+
+  # all columns
   cols = [4:33];
 
-  data = nn_csvread('../../data/fordTrain.csv');
+  # iteration count
+  iter_count = 10;
 
-  train_set = nn_get_training_set(data, cols);
-  [nn, mean, std] = nn_train(train_set);
+  for i = 1:iter_count
+    # train the net
+    train_set = nn_get_training_set(data, cols, train_tids);
+    [nn, mean, std] = nn_train(train_set);
 
-  [test_set, res_set] = nn_get_testing_set(data, cols);
-  score = nn_score(nn, mean, std, test_set, res_set);
-  printf("score: %f\n", score);
+    # generate test tids
+    test_tids = gen_tids(10);
 
-  #submission_data = nn_csvread('../../data/fordTest.csv');
-  #[submission_set, res_set] = nn_get_submission_set(submission_data, cols);
-  #submission_res = nn_eval(nn, mean, std, submission_set);
-  #nn_submit(submission_data, submission_res);
+    # get the scores
+    scores = nn_do_score(data, nn, mean, std, cols, test_tids);
+
+    # add bad scoring tid to training set or done
+    bad_scores = find(scores <= 0.5);
+
+    if length(bad_scores) == 0 return ; end # we are done
+
+    scores(bad_scores)
+
+    train_tids = [train_tids test_tids(bad_scores)];
+  end
+
+endfunction
+
+
+function nn_save(nn, filename)
+  saveMLPStruct(nn, filename);
 endfunction
 
 
