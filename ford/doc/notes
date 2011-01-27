@@ -1,4 +1,7 @@
 . todos
+ . ajouter les colonnes concernant les derivees et entrainer le reseau la dessus
+  . entrainer seulement sur les derivees? avec amplitudes?
+  . recuperer les training set est trop long, depend de la position du set... c est quoi ce bordel!!
  . plan d attaque
   . general: utilisation d un reseau de neurones
   . filtrage des samples d entree

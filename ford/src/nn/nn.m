@@ -23,12 +23,6 @@ function [test_set, res_set] = nn_get_testing_set(data, cols, tid)
   test_set = data(rows,cols);
 endfunction
 
-function [test_set, res_set] = nn_get_submission_set(data, cols)
-  # get a subset for testing
-  res_set = data(:,3);
-  test_set = data(:,cols);
-endfunction
-
 function ti = nn_get_eval_set(ds)
   # ti the training set input, output values
   ncols = size(ds)(2);
@@ -307,36 +301,41 @@ function scores = nn_do_score(data, nn, mean, std, cols, tids)
   scores = [];
   i = 1;
   for tid = tids
-    [test_set, res_set] = nn_get_testing_set(data, cols, tid);
+    [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
     scores(i) = nn_score(nn, mean, std, test_set, res_set);
     i = i + 1;
   end
 endfunction
 
 
-function [nn, mean, std] = nn_do_train(data)
+function [nn, mean, std] = nn_do_train(data, cols)
   # generate a random set of N tids
-  train_tids = gen_tids(30);
 
-  # all columns
-  cols = [4:33];
+  # train_tids = gen_tids(200);
+  # train_tids = gen_tids(50);
+  # train_tids = [1:10];
+  train_set = nn_get_training_set_deriv(data, cols, train_tids);
+  [nn, mean, std] = nn_train(train_set);
+  return ;
 
   # iteration count
   iter_count = 10;
 
   for i = 1:iter_count
+    printf("----- GENERATION %d\n", i);
+
     # train the net
     train_set = nn_get_training_set(data, cols, train_tids);
     [nn, mean, std] = nn_train(train_set);
 
     # generate test tids
-    test_tids = gen_tids(10);
+    test_tids = gen_tids(20);
 
     # get the scores
     scores = nn_do_score(data, nn, mean, std, cols, test_tids);
 
     # add bad scoring tid to training set or done
-    bad_scores = find(scores <= 0.5);
+    bad_scores = find(scores <= 0.6);
 
     if length(bad_scores) == 0 return ; end # we are done
 
@@ -349,7 +348,81 @@ endfunction
 
 
 function nn_save(nn, filename)
-  saveMLPStruct(nn, filename);
+  # to save the nn, must be called like this: save(filename, "nn");
+  # "nn" must be the stringified variable name
+  # then the nn can be load with nn = load(filename);
+endfunction
+
+
+function train_set = nn_get_training_set_deriv(data, cols, tids)
+  # row format: [ alert, sample0, sample1, deriv0, deriv1 ]
+
+  col_count = length(cols);
+
+  first_sampl_col = 2;
+  last_sampl_col = first_sampl_col + col_count - 1;
+  first_deriv_col = last_sampl_col + 1;
+  last_deriv_col = first_deriv_col + col_count - 1;
+
+  train_set = zeros(100, last_deriv_col);
+
+  # train_row indexes the current training set
+  train_row = 1;
+
+  # toremove
+  tid_count = 0;
+  # toremove
+
+  # filter the original rows
+  for tid = tids
+    # toremove
+    printf("%d / %d\n", tid_count, length(tids)); fflush(1);
+    tid_count = tid_count + 1;
+    # toremove
+
+    rows = find(data(:,1)==tid);
+    rows = rows'; # transposed
+
+    # perchunk trainset expansion
+    row_count = length(rows);
+    train_set(train_row:train_row + row_count,:) = zeros();
+
+    # first row handled separately
+    if length(rows) <= 1 continue; end
+    row = rows(1);
+    train_set(train_row, 1) = data(row, 3);
+    train_set(train_row, first_sampl_col:last_sampl_col) = data(row, cols);
+    train_set(train_row, first_deriv_col:last_deriv_col) = zeros(1, col_count);
+    train_row = train_row + 1;
+    rows(1) = [];
+
+    # foreach row, get data and signal derivative
+    for row = rows
+      # assign signal samples
+      train_set(train_row, 1) = data(row, 3);
+      train_set(train_row, first_sampl_col:last_sampl_col) = data(row, cols);
+      # compute derivatives
+      train_set(train_row, first_deriv_col:last_deriv_col) = data(row, cols) - data(row - 1, cols);
+      # next training set row
+      train_row = train_row + 1;
+    end
+  end
+endfunction
+
+
+function [test_set, res_set] = nn_get_submission_set_deriv(data, cols)
+  # get the list of unique tids
+  tids = unique(data(:,1));
+  test_set = nn_get_training_set_deriv(data, cols, tids);
+  res_set = test_set(:,1);
+  test_set(:,1) = [];
+endfunction
+
+
+function [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tids)
+  test_set = nn_get_training_set_deriv(data, cols, tids);
+  res_set = test_set(:,1);
+  test_set(:,1) = [];
 endfunction
 
 
