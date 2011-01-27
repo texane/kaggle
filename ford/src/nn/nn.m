@@ -285,7 +285,7 @@ function nn_do_submit(data, nn, mean, std, cols)
   end
 
   submission_data = nn_csvread('../../data/fordTest.csv');
-  [submission_set, res_set] = nn_get_submission_set(submission_data, cols);
+  [submission_set, res_set] = nn_get_submission_set_deriv(submission_data, cols);
   submission_res = nn_eval(nn, mean, std, submission_set);
   nn_submit(submission_data, submission_res);
 endfunction
@@ -313,7 +313,7 @@ function [nn, mean, std] = nn_do_train(data, cols)
 
   # train_tids = gen_tids(200);
   # train_tids = gen_tids(50);
-  # train_tids = [1:10];
+  train_tids = [1:300];
   train_set = nn_get_training_set_deriv(data, cols, train_tids);
   [nn, mean, std] = nn_train(train_set);
   return ;
@@ -364,7 +364,7 @@ function train_set = nn_get_training_set_deriv(data, cols, tids)
   first_deriv_col = last_sampl_col + 1;
   last_deriv_col = first_deriv_col + col_count - 1;
 
-  train_set = zeros(100, last_deriv_col);
+  train_set = zeros(1, last_deriv_col);
 
   # train_row indexes the current training set
   train_row = 1;
@@ -383,12 +383,14 @@ function train_set = nn_get_training_set_deriv(data, cols, tids)
     rows = find(data(:,1)==tid);
     rows = rows'; # transposed
 
-    # perchunk trainset expansion
     row_count = length(rows);
-    train_set(train_row:train_row + row_count,:) = zeros();
+    if row_count <= 1 continue; end
+
+    # perchunk trainset expansion
+    train_set(train_row:train_row + row_count - 1,:) = zeros();
 
     # first row handled separately
-    if length(rows) <= 1 continue; end
+
     row = rows(1);
     train_set(train_row, 1) = data(row, 3);
     train_set(train_row, first_sampl_col:last_sampl_col) = data(row, cols);
@@ -413,6 +415,7 @@ endfunction
 function [test_set, res_set] = nn_get_submission_set_deriv(data, cols)
   # get the list of unique tids
   tids = unique(data(:,1));
+  tids = tids';
   test_set = nn_get_training_set_deriv(data, cols, tids);
   res_set = test_set(:,1);
   test_set(:,1) = [];
