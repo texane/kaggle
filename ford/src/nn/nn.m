@@ -280,10 +280,6 @@ endfunction
 
 
 function nn_do_submit(data, nn, mean, std, cols)
-  if nargin == 0
-    [data, nn, mean, std, cols] = nn_create_net();
-  end
-
   submission_data = nn_csvread('../../data/fordTest.csv');
   [submission_set, res_set] = nn_get_submission_set_deriv(submission_data, cols);
   submission_res = nn_eval(nn, mean, std, submission_set);
@@ -292,16 +288,10 @@ endfunction
 
 
 function scores = nn_do_score(data, nn, mean, std, cols, tids)
-  if nargin == 0
-    [data, nn, mean, std, cols] = nn_create_net();
-    tids = gen_tids(10);
-    cols = [4:33];
-  end
-
   scores = [];
   i = 1;
   for tid = tids
-    [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
+    [test_set, res_set] = nn_get_testing_set_deriv_only(data, cols, tid);
     scores(i) = nn_score(nn, mean, std, test_set, res_set);
     i = i + 1;
   end
@@ -314,7 +304,7 @@ function [nn, mean, std] = nn_do_train(data, cols)
   # train_tids = gen_tids(200);
   # train_tids = gen_tids(50);
   train_tids = [1:300];
-  train_set = nn_get_training_set_deriv(data, cols, train_tids);
+  train_set = nn_get_training_set_deriv_only(data, cols, train_tids);
   [nn, mean, std] = nn_train(train_set);
   return ;
 
@@ -412,6 +402,12 @@ function train_set = nn_get_training_set_deriv(data, cols, tids)
 endfunction
 
 
+function train_set = nn_get_training_set_deriv_only(data, cols, tids)
+  train_set = nn_get_training_set_deriv(data, cols, tids);
+  train_set(:, cols) = [];
+endfunction
+
+
 function [test_set, res_set] = nn_get_submission_set_deriv(data, cols)
   # get the list of unique tids
   tids = unique(data(:,1));
@@ -422,10 +418,22 @@ function [test_set, res_set] = nn_get_submission_set_deriv(data, cols)
 endfunction
 
 
+function [test_set, res_set] = nn_get_submission_set_deriv_only(data, cols)
+  [test_set, res_set] = nn_get_submission_set_deriv(data, cols);
+  test_set(:, cols) = [];
+endfunction
+
+
 function [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tids)
   test_set = nn_get_training_set_deriv(data, cols, tids);
   res_set = test_set(:,1);
   test_set(:,1) = [];
+endfunction
+
+
+function [test_set, res_set] = nn_get_testing_set_deriv_only(data, cols, tids)
+  [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tids);
+  test_set(:, cols) = [];
 endfunction
 
 

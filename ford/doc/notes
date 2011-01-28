@@ -13,6 +13,13 @@
    coherents
    -> meme si ca a ete teste
 
+. ajout des derivees dans l entrainement du nn
+ . entrainement sur les 300 premiers tids
+ . soumission, public AUC: 0.758521
+ . a peu meilleur que sans
+ . nn_do_scores(tids = [300:400]) ~= 0.79
+ . nn_do_scores(tids = [300:210]) ~= 0.71228
+
 . input data
  . trial id: a trial on one observer
  . 1210 samples of different sources taken every 100 ms (~2min)
