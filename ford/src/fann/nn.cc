@@ -21,7 +21,7 @@ static void on_data
 
   table::row_type::const_iterator opos = ref_out_table->rows[row].begin();
   table::row_type::const_iterator oend = ref_out_table->rows[row].end();
-  for (; ipos != iend; ++opos, ++outs) *outs = *opos;
+  for (; opos != oend; ++opos, ++outs) *outs = *opos;
 }
 
 static int create_train_set
@@ -32,6 +32,10 @@ static int create_train_set
 
   *train_set = fann_create_train_from_callback
     (in_table.row_count, in_table.col_count, out_table.col_count, on_data);
+
+#if 1 // unused
+  fann_save_train(*train_set, "/tmp/train.sav");
+#endif
 
   return (*train_set == NULL) ? -1 : 0;
 }
