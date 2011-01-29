@@ -238,6 +238,47 @@ void table_extract_rows
     new_table.rows[i] = table.rows[rows[i]];
 }
 
+void table_split_at_col
+(table& new_table, table& table, unsigned int pivot)
+{
+  // new_table gets cols[pivot, col_count[
+
+  new_table.col_count = table.col_count - pivot;
+  new_table.row_count = table.row_count;
+  new_table.rows.resize(new_table.row_count);
+
+  for (size_t i = 0; i < table.row_count; ++i)
+  {
+    new_table.rows[i].resize(new_table.col_count);
+
+    // copy cols from table to new_table
+    table::row_type::iterator pos = table.rows[i].begin();
+    for (size_t j = pivot; j < table.col_count; ++j, ++pos)
+      new_table.rows[i][j] = *pos;
+
+    // erase cols from table
+    table.rows[i].erase(pos, table.rows[i].end());
+  }
+
+}
+
+void table_split_at_row
+(table& new_table, table& table, unsigned int pivot)
+{
+  // new_table gets rows[pivot, row_count[
+
+  new_table.row_count = table.row_count - pivot;
+  new_table.rows.resize(new_table.row_count);
+  new_table.col_count = table.col_count;
+
+  // copy rows from table to new_table
+  vector<table::row_type>::iterator pos = table.rows.begin();
+  for (size_t i = pivot; i < table.row_count; ++i, ++pos)
+    new_table.rows[i] = *pos;
+
+  // erase from table
+  table.rows.erase(pos, table.rows.end());
+}
 
 #if 0 // helper routines
 

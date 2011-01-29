@@ -8,34 +8,31 @@
 
 int main(int ac, char** av)
 {
-  table data_table, in_table, out_table;
+  // in, out
+  table train_tables[2];
+  table test_tables[3];
+
   std::vector<unsigned int> cols;
   fann* nn;
 
-  table_read_csv_file(data_table, "../../data/fordTrainSmall.csv");
+  table_read_csv_file(train_tables[0], "../../data/fordTrainSmall.csv");
 
-  cols.resize(1); cols[0] = 2;
-  table_extract_cols(out_table, data_table, cols);
+  // train on the first 10 rows, test on remaining ones
+  table_split_at_row(test_tables[0], train_tables[0], 10);
 
-  cols.resize(3);
-  cols[0] = 0; cols[1] = 1; cols[2] = 2;
-  table_delete_cols(data_table, cols);
+  // xxx_tables[0] has inputs, [1] has the output
+  table_split_at_col(train_tables[1], train_tables[0], 3);
+  cols.resize(2); cols[0] = 0; cols[1] = 1;
+  table_delete_cols(train_tables[1], cols);
 
-  nn_create_and_train(&nn, data_table, out_table);
+  table_split_at_col(test_tables[1], test_tables[0], 3);
+  cols.resize(2); cols[0] = 0; cols[1] = 1;
+  table_delete_cols(test_tables[1], cols);
 
-  table_destroy(data_table);
-  table_destroy(out_table);
-
-  table_read_csv_file(data_table, "../../data/fordTrainSmall.csv");
-
-  cols.resize(3);
-  cols[0] = 0; cols[1] = 1; cols[2] = 2;
-  table_delete_cols(data_table, cols);
-
-  nn_eval(nn, data_table, out_table);
+  // train and eval the network
+  nn_create_and_train(&nn, train_tables[1], train_tables[0]);
+  nn_eval(nn, test_tables[1], test_tables[2]);
   nn_destroy(nn);
-
-  table_print(out_table);
 
   return 0;
 }
