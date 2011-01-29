@@ -33,6 +33,7 @@ void table_extract_rows(table&, const table&, const vector<unsigned int>&);
 void table_delete_cols(table&, const vector<unsigned int>&);
 void table_split_at_col(table&, table&, unsigned int);
 void table_split_at_row(table&, table&, unsigned int);
+void table_find_rows(vector<unsigned int>&, const table&, unsigned int, const vector<table::data_type>&);
 void table_print(const table&);
 
 
