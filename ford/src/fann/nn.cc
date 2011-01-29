@@ -16,13 +16,12 @@ static void on_data
   // outs the output values
 
   table::row_type::const_iterator ipos = ref_in_table->rows[row].begin();
+  table::row_type::const_iterator iend = ref_in_table->rows[row].end();
+  for (; ipos != iend; ++ipos, ++ins) *ins = *ipos;
+
   table::row_type::const_iterator opos = ref_out_table->rows[row].begin();
-  table::row_type::const_iterator end = ref_in_table->rows[row].end();
-  for (; ipos != end; ++ipos, ++opos, ++ins, ++outs)
-  {
-    *ins = *ipos;
-    *outs = *opos;
-  }
+  table::row_type::const_iterator oend = ref_out_table->rows[row].end();
+  for (; ipos != iend; ++opos, ++outs) *outs = *opos;
 }
 
 static int create_train_set
@@ -75,8 +74,7 @@ int nn_eval(struct fann* nn, table& in_table, table& out_table)
 {
   int error = -1;
 
-  // hack
-  out_table.col_count = 1;
+  out_table.col_count = fann_get_num_output(nn);
   out_table.row_count = in_table.row_count;
   out_table.rows.resize(in_table.row_count);
 

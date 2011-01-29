@@ -219,7 +219,6 @@ void table_delete_cols(table& table, const vector<unsigned int>& cols)
     unsigned int count = 0;
     for (size_t j = 0; j < cols.size(); ++j, ++count)
     {
-      printf("del %u\n", cols[j] - count);
       table::row_type::iterator pos = table.rows[i].begin() + (cols[j] - count);
       table.rows[i].erase(pos);
     }

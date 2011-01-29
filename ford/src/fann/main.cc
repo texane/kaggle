@@ -22,11 +22,16 @@ int main(int ac, char** av)
   table_delete_cols(data_table, cols);
 
   nn_create_and_train(&nn, data_table, out_table);
+
   table_destroy(data_table);
   table_destroy(out_table);
 
   table_read_csv_file(data_table, "../../data/fordTrainSmall.csv");
+
+  cols.resize(3);
+  cols[0] = 0; cols[1] = 1; cols[2] = 2;
   table_delete_cols(data_table, cols);
+
   nn_eval(nn, data_table, out_table);
   nn_destroy(nn);
 
