@@ -33,8 +33,30 @@ void table_extract_rows(table&, const table&, const vector<unsigned int>&);
 void table_delete_cols(table&, const vector<unsigned int>&);
 void table_split_at_col(table&, table&, unsigned int);
 void table_split_at_row(table&, table&, unsigned int);
-void table_find_rows(vector<unsigned int>&, const table&, unsigned int, const vector<table::data_type>&);
 void table_print(const table&);
+
+
+// inlined functions
+
+template<typename functor_type>
+void table_find_rows
+(vector<unsigned int>& rows, const table& table, unsigned int col, functor_type func)
+{
+  size_t row_count = 0;
+
+  rows.resize(table.row_count);
+
+  for (size_t i = 0; i < table.row_count; ++i)
+  {
+    if (func(table.rows[i][col]))
+    {
+      // found
+      rows[row_count++] = i;
+    }
+  }
+
+  rows.resize(row_count);
+}
 
 
 #endif // ! TABLE_HH_INCLUDED

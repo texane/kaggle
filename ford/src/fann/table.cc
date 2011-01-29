@@ -283,33 +283,6 @@ void table_split_at_row
   table.row_count = pivot;
 }
 
-void table_find_rows
-(
- vector<unsigned int>& rows,
- const table& table,
- unsigned int col,
- const vector<table::data_type>& values
-)
-{
-  size_t row_count = 0;
-
-  rows.resize(table.row_count);
-
-  for (size_t i = 0; i < table.row_count; ++i)
-  {
-    for (size_t j = 0; j < values.size(); ++j)
-    {
-      if (table.rows[i][col] == values[j])
-      {
-	// found
-	rows[row_count++] = i;
-	break ;
-      }
-    } // foreach val
-  } // foreach row
-
-  rows.resize(row_count);
-}
 
 #if 0 // helper routines
 
