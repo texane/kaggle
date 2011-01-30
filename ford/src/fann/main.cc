@@ -271,6 +271,11 @@ static void score(int ac, char** av)
   gen_tids_rand(dummy_table, test_tables[0], data_table, 100);
   table_destroy(data_table);
 
+  vector<unsigned int> cols;
+  table_split_at_col(test_tables[1], test_tables[0], 3);
+  cols.resize(2); cols[0] = 0; cols[1] = 1;
+  table_delete_cols(test_tables[0], cols);
+
   nn_eval(nn, test_tables[1], test_tables[2]);
 
   // eval the score
