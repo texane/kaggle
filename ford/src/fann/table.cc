@@ -116,11 +116,6 @@ static int next_col(mapped_line_t* ml, unsigned char* buf)
   return 0;
 }
 
-static table::data_type buf_to_value(const unsigned char* buf)
-{
-  return strtod((const char*)buf, NULL);
-}
-
 static size_t get_col_count(mapped_file_t* mf)
 {
   mapped_file_t tmp_mf = *mf;
@@ -161,9 +156,30 @@ static void skip_first_line(mapped_file_t* mf)
   }
 }
 
+static inline int next_value
+(mapped_file_t& mf, table::data_type& value)
+{
+  char* endptr;
+
+  if (mf.off >= mf.len) return -1;
+
+  value = 0;
+  if (mf.base[mf.off] == '?')
+    endptr = (char*)mf.base + mf.off + 1;
+  else
+    value = strtod((char*)mf.base + mf.off, &endptr);
+
+  // endptr points to the next caracter
+  mf.off = endptr - (char*)mf.base + 1;
+
+  return 0;
+}
+
 int table_read_csv_file(table& table, const char* path)
 {
   // table_create not assumed
+
+  int error = -1;
 
   if (table_create(table) == -1) return -1;
 
@@ -176,23 +192,36 @@ int table_read_csv_file(table& table, const char* path)
   // skip first line if needed
   skip_first_line(&mf);
 
-  table::row_type row;
+  vector<table::data_type> row;
   row.resize(table.col_count);
 
-  unsigned char buf[256];
-  mapped_line_t ml;
-  while (next_line(&mf, &ml) != -1)
+  table::data_type value;
+  while (1)
   {
+    // no more value
+    if (next_value(mf, value) == -1) break ;
+
     size_t col_pos = 0;
-    while (next_col(&ml, buf) != -1)
-      row[col_pos++] = buf_to_value(buf);
+    goto add_first_value;
+    for (; col_pos < table.col_count; ++col_pos)
+    {
+      if (next_value(mf, value) == -1) break ;
+    add_first_value:
+      row[col_pos] = value;
+    }
+
+    if (col_pos != table.col_count) goto on_error;
 
     table.rows.push_back(row);
     ++table.row_count;
   }
 
+  // success
+  error = 0;
+
+ on_error:
   unmap_file(&mf);
-  return 0;
+  return error;
 }
 
 void table_extract_cols

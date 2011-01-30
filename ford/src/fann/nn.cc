@@ -33,10 +33,6 @@ static int create_train_set
   *train_set = fann_create_train_from_callback
     (in_table.row_count, in_table.col_count, out_table.col_count, on_data);
 
-#if 1 // unused
-  fann_save_train(*train_set, "/tmp/train.sav");
-#endif
-
   return (*train_set == NULL) ? -1 : 0;
 }
 
@@ -46,20 +42,30 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
   int error = -1;
 
   // create the network
-  unsigned int layers[3];
+#define CONFIG_HIDDEN_LAYER_COUNT 1
+#define CONFIG_HIDDEN_NEURON_COUNT 20 // per layer
+#define CONFIG_TOTAL_LAYER_COUNT (2 + CONFIG_HIDDEN_LAYER_COUNT)
+  unsigned int layers[CONFIG_TOTAL_LAYER_COUNT];
   layers[0] = in_table.col_count;
-  layers[1] = 10;
-  layers[2] = out_table.col_count;
+  for (size_t i = 0; i < CONFIG_HIDDEN_LAYER_COUNT; ++i)
+    layers[i + 1] = CONFIG_HIDDEN_NEURON_COUNT;
+  layers[CONFIG_HIDDEN_LAYER_COUNT + 1] = out_table.col_count;
 
-  *nn = fann_create_standard_array(3, layers);
+  *nn = fann_create_standard_array(CONFIG_TOTAL_LAYER_COUNT, layers);
   if (*nn == NULL) return -1;
 
   // create train set and train the network
   if (create_train_set(&train_data, in_table, out_table) == -1) goto on_error;
 
-  fann_set_training_algorithm(*nn, FANN_TRAIN_INCREMENTAL);
+  fann_set_activation_function_hidden(*nn, FANN_SIGMOID_SYMMETRIC);
+  fann_set_activation_function_output(*nn, FANN_LINEAR);
+  fann_set_training_algorithm(*nn, FANN_TRAIN_RPROP);
   fann_set_learning_momentum(*nn, 0.4);
-  fann_train_on_data(*nn, train_data, 3000, 0, 0.001);
+  fann_train_on_data(*nn, train_data, 300, 0, 0.01);
+
+  fann_reset_MSE(*nn);
+  fann_test_data(*nn, train_data);
+  printf("Mean Square Error: %f\n", fann_get_MSE(*nn));
 
   // success
   error = 0;
@@ -74,6 +80,7 @@ void nn_destroy(struct fann* nn)
   fann_destroy(nn);
 }
 
+#if 1
 int nn_eval(struct fann* nn, table& in_table, table& out_table)
 {
   int error = -1;
@@ -106,6 +113,22 @@ int nn_eval(struct fann* nn, table& in_table, table& out_table)
   free(inputs);
   return error;
 }
+#else
+int nn_eval(struct fann* nn, table& in_table, table& out_table)
+{
+  out_table.col_count = fann_get_num_output(nn);
+  out_table.row_count = in_table.row_count;
+  out_table.rows.resize(in_table.row_count);
+
+  for (size_t i = 0; i < out_table.row_count; ++i)
+  {
+    out_table.rows[i].resize(out_table.col_count);
+    for (size_t j = 0; j < out_table.col_count; ++j)
+      out_table.rows[i][j] = 1;
+  }
+  return 0;
+}
+#endif
 
 int nn_load(struct fann** nn, const char* filename)
 {
