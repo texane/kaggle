@@ -286,6 +286,46 @@ static void score(int ac, char** av)
 } // score
 
 
+static void deriv(int ac, char** av)
+{
+  // compute the derivative of the table 
+
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
+
+  unsigned int prev_tid = (unsigned int)-1;
+  table table;
+
+  table_read_csv_file(table, input_path);
+
+  const size_t new_col_count = 3 + (table.col_count - 3) * 2;
+
+  for (size_t i = 0; i < table.row_count; ++i)
+  {
+    table.rows[i].resize(new_col_count);
+
+    // new signal
+    if (prev_tid != table.rows[i][TID_COLUMN])
+    {
+      for (size_t j = table.col_count; j < new_col_count; ++j)
+	table.rows[i][j] = 0;
+      prev_tid = table.rows[i][TID_COLUMN];
+    }
+    else // compute derivative
+    {
+      size_t j = 3, k = table.col_count;
+      for ( ; j < table.col_count; ++j, ++k)
+	table.rows[i][k] = table.rows[i][j] - table.rows[i - 1][j];
+    }
+  }
+
+  table.col_count = new_col_count;
+
+  table_write_csv_file(table, output_path);
+  
+} // deriv
+
+
 // main
 
 int main(int ac, char** av)
@@ -294,5 +334,6 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "train") == 0) train(ac - 2, av + 2);
   else if (strcmp(av[1], "submit") == 0) submit(ac - 2, av + 2);
   else if (strcmp(av[1], "score") == 0) score(ac - 2, av + 2);
+  else if (strcmp(av[1], "deriv") == 0) deriv(ac - 2, av + 2);
   return 0;
 }

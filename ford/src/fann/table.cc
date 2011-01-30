@@ -227,7 +227,7 @@ int table_read_csv_file(table& table, const char* path)
 
 int table_write_csv_file(const table& table, const char* path)
 {
-  char buf[512];
+  char buf[1024];
 
   // prepend TrialID,ObsNum,Prediction
   const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
@@ -238,11 +238,10 @@ int table_write_csv_file(const table& table, const char* path)
 
   for (size_t i = 0; i < table.row_count; ++i)
   {
-    const size_t len = sprintf
-      (buf, "%u,%u,%u\n",
-       (unsigned int)table.rows[i][0],
-       (unsigned int)table.rows[i][1],
-       (unsigned int)table.rows[i][2]);
+    size_t len = 0;
+    for (size_t j = 0; j < table.col_count; ++j)
+      len += sprintf(buf + len, "%lf,", table.rows[i][j]);
+    buf[len - 1] = '\n';
     write(fd, buf, len);
   }
 

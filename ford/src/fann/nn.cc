@@ -61,7 +61,7 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
   fann_set_activation_function_output(*nn, FANN_LINEAR);
   fann_set_training_algorithm(*nn, FANN_TRAIN_RPROP);
   fann_set_learning_momentum(*nn, 0.4);
-  fann_train_on_data(*nn, train_data, 200, 10, 0.01);
+  fann_train_on_data(*nn, train_data, 400, 10, 0.01);
 
   // success
   error = 0;
