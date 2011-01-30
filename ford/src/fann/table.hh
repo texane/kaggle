@@ -28,6 +28,7 @@ typedef struct table
 int table_create(table&);
 void table_destroy(table&);
 int table_read_csv_file(table&, const char*);
+int table_write_csv_file(const table&, const char*);
 void table_extract_cols(table&, const table&, const vector<unsigned int>&);
 void table_extract_rows(table&, const table&, const vector<unsigned int>&);
 void table_delete_cols(table&, const vector<unsigned int>&);

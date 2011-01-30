@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -222,6 +223,31 @@ int table_read_csv_file(table& table, const char* path)
  on_error:
   unmap_file(&mf);
   return error;
+}
+
+int table_write_csv_file(const table& table, const char* path)
+{
+  char buf[512];
+
+  // prepend TrialID,ObsNum,Prediction
+  const int fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0700);
+  if (fd == -1) return -1;
+
+  static const char* header_string = "TrialID,ObsNum,Prediction\n";
+  write(fd, header_string, strlen(header_string));
+
+  for (size_t i = 0; i < table.row_count; ++i)
+  {
+    const size_t len = sprintf
+      (buf, "%u,%u,%u\n",
+       (unsigned int)table.rows[i][0],
+       (unsigned int)table.rows[i][1],
+       (unsigned int)table.rows[i][2]);
+    write(fd, buf, len);
+  }
+
+  close(fd);
+  return 0;
 }
 
 void table_extract_cols
