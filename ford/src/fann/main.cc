@@ -179,34 +179,23 @@ static void submit(int ac, char** av)
   const char* const input_path = av[1];
   const char* const output_path = av[2];
 
-  table input_table, output_tables[2];
+  table input_tables[2], output_table;
 
-  table_read_csv_file(input_table, input_path);
-
-  vector<unsigned int> cols;
-  cols.resize(3);
-  cols[0] = 0; cols[1] = 1; cols[2] = 2;
-  table_delete_cols(input_table, cols);
+  table_read_csv_file(input_tables[0], input_path);
+  table_split_at_col(input_tables[1], input_tables[0], 3);
 
   struct fann* nn;
   nn_load(&nn, nn_path);
-  nn_eval(nn, input_table, output_tables[0]);
+  nn_eval(nn, input_tables[1], output_table);
+  nn_destroy(nn);
 
-  output_tables[1].col_count = 3;
-  output_tables[1].row_count = output_tables[0].row_count;
-  output_tables[1].rows.resize(output_tables[1].row_count);
-
-  for (size_t i = 0; i < output_tables[0].row_count; ++i)
+  for (size_t i = 0; i < output_table.row_count; ++i)
   {
-    const double value = output_tables[0].rows[i][0] < 0.5 ? 0.f : 1.f;
-
-    output_tables[1].rows[i].resize(3);
-    output_tables[1].rows[i][0] = input_table.rows[i][0];
-    output_tables[1].rows[i][1] = input_table.rows[i][1];
-    output_tables[1].rows[i][2] = value;
+    const double value = output_table.rows[i][0] < 0.5 ? 0.f : 1.f;
+    input_tables[0].rows[i][2] = value;
   }
 
-  table_write_csv_file(output_tables[1], output_path);
+  table_write_csv_file(input_tables[0], output_path);
 
 } // submission
 

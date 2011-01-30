@@ -230,7 +230,7 @@ int table_write_csv_file(const table& table, const char* path)
   char buf[512];
 
   // prepend TrialID,ObsNum,Prediction
-  const int fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0700);
+  const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd == -1) return -1;
 
   static const char* header_string = "TrialID,ObsNum,Prediction\n";
