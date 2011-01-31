@@ -125,15 +125,15 @@ static size_t get_col_count(mapped_file_t* mf)
   if (next_line(&tmp_mf, &ml) == -1) return 0;
 
   unsigned char buf[256];
-  size_t col_count = 0;
-  while (next_col(&ml, buf) != -1) ++col_count;
+  size_t col_count;
+  for (col_count = 0; next_col(&ml, buf) != -1; ++col_count) ;
 
   return col_count;
 }
 
 static inline bool is_digit(unsigned char c)
 {
-  return (c >= '0' && c <= '9') || c == '.';
+  return (c >= '0' && c <= '9') || (c == '.') || (c == '-');
 }
 
 static void skip_first_line(mapped_file_t* mf)
@@ -187,11 +187,11 @@ int table_read_csv_file(table& table, const char* path)
   mapped_file_t mf;
   if (map_file(&mf, path) == -1) return -1;
 
+  // skip first line if needed (before counting cols)
+  skip_first_line(&mf);
+
   // get the column count
   table.col_count = get_col_count(&mf);
-
-  // skip first line if needed
-  skip_first_line(&mf);
 
   vector<table::data_type> row;
   row.resize(table.col_count);
