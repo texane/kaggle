@@ -54,7 +54,7 @@ function [nn, mean, std] = nn_train(data)
 
   # hidden and output layers neurons count
   # nn_counts = [10, 1];
-  nn_counts = [1, 1];
+  nn_counts = [5, 1];
   # layers transfer function
   nn_funcs = {"tansig", "purelin"};
 
@@ -291,20 +291,35 @@ function scores = nn_do_score(data, nn, mean, std, cols, tids)
   scores = [];
   i = 1;
   for tid = tids
-    [test_set, res_set] = nn_get_testing_set_deriv_only(data, cols, tid);
+    #[test_set, res_set] = nn_get_testing_set_deriv_only(data, cols, tid);
+    [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
+    #[test_set, res_set] = nn_get_testing_set(data, cols, tid);
     scores(i) = nn_score(nn, mean, std, test_set, res_set);
     i = i + 1;
   end
+
+  # post filter
+  z = find(scores == 0);
+  if (length(z) == 0) return ; end
+
+  for i = 1:length(z)
+    [zero_data, zero_res] = nn_get_testing_set_deriv(data, cols, tids(z(i)));
+    printf("tid: %d\n", tids(z(i)));
+    subplot(length(z), 1, i); plot(zero_res(:, 1));
+  end
+
 endfunction
 
 
 function [nn, mean, std] = nn_do_train(data, cols)
   # generate a random set of N tids
 
-  # train_tids = gen_tids(200);
-  # train_tids = gen_tids(50);
-  train_tids = [1:300];
-  train_set = nn_get_training_set_deriv_only(data, cols, train_tids);
+  train_tids = gen_tids(100);
+  # train_tids = [1:300];
+  # train_tids = [1:100];
+  # train_set = nn_get_training_set_deriv_only(data, cols, train_tids);
+  train_set = nn_get_training_set_deriv(data, cols, train_tids);
+  # train_set = nn_get_training_set(data, cols, train_tids);
   [nn, mean, std] = nn_train(train_set);
   return ;
 
@@ -359,17 +374,8 @@ function train_set = nn_get_training_set_deriv(data, cols, tids)
   # train_row indexes the current training set
   train_row = 1;
 
-  # toremove
-  tid_count = 0;
-  # toremove
-
   # filter the original rows
   for tid = tids
-    # toremove
-    printf("%d / %d\n", tid_count, length(tids)); fflush(1);
-    tid_count = tid_count + 1;
-    # toremove
-
     rows = find(data(:,1)==tid);
     rows = rows'; # transposed
 

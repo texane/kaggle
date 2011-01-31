@@ -20,6 +20,24 @@
  . nn_do_scores(tids = [300:400]) ~= 0.79
  . nn_do_scores(tids = [300:210]) ~= 0.71228
 
+ . en utilisant seulement les derivees, on obtient un mauvais score global,
+ car beaucoup d individus ont un alertness constant a 0. dans ce cas, notre
+ score == 0. Par contre, les bonnes predictions sont vraiment bonnes (score
+ moyen >86%) -> il faut voir pourquoi on n arrive pas a predire ce type
+ d individus
+  . essayer en employant le reseau de neurones entraine normalement
+liste
+tid: 301
+tid: 302
+tid: 303
+tid: 304
+tid: 305
+tid: 306
+tid: 307
+tid: 308
+tid: 309
+tid: 310
+
 . input data
  . trial id: a trial on one observer
  . 1210 samples of different sources taken every 100 ms (~2min)

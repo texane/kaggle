@@ -1,5 +1,7 @@
 . neural networks
 
+. actuellement, nn_do_scores() == 0.76
+
 . ce a quoi on s attend
  . plus on avance dans le temps, moins on a de bons resultats
   -> le reseau de neurones agit comme une fonction instantanee, pas
@@ -20,9 +22,14 @@
   . les amplitudes ne suffisent pas
    . ce sont des signaux, beaucoup d information dans la derivee
 
-. reference
- . http://leenissen.dk/fann/
- . http://www.plexso.com/61_octave/index.html
+. software
+ . fann library, http://leenissen.dk/fann/
+ . octave matlab neural network implementation, http://www.plexso.com/61_octave/index.html
+ . torch5, http://torch5.sourceforge.net/manual/index.html
+ . flood library, http://www.cimne.com/flood/download.asp
+
+. homework, projects
+ . http://www.cnel.ufl.edu/courses/EEL6814/EEL6814.php
 
 . toread
  . http://www.ibiblio.org/pub/Linux//docs/LDP/linuxfocus/English/September2004/article345.shtml

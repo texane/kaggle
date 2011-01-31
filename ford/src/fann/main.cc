@@ -100,7 +100,7 @@ static inline void get_tids_eq
 }
 
 
-#if 0 // generate a random permutation
+#if 1 // generate a random permutation
 
 static inline void init_rand_once()
 {
@@ -125,9 +125,6 @@ static void shuffle(vector<table::data_type>& perm)
 
   // print permutation
   vector<table::data_type>::const_iterator pos = perm.begin();
-  for (; pos != perm.begin() + first_count; ++pos)
-    printf("%u, ", (unsigned int)*pos);
-  printf("\n");
   for (; pos != perm.end(); ++pos)
     printf("%u, ", (unsigned int)*pos);
   printf("\n");
@@ -200,7 +197,7 @@ static void submit(int ac, char** av)
 } // submission
 
 
-static void train(int ac, char** av)
+static void train(int ac, char** av, bool retrain = false)
 {
   const char* const train_path = av[0];
   const char* const sav_path = av[1];
@@ -211,9 +208,21 @@ static void train(int ac, char** av)
   table train_tables[2];
   table test_tables[3];
 
+  vector<unsigned int> cols;
+
   gettimeofday(&start, NULL);
 
   table_read_csv_file(data_table, train_path);
+
+#if 0
+  // delete those cols
+  static const size_t todel[] = { 10, 13, 17, 22, 26, 27, 28, 30, 31, 32 };
+  static const size_t todel_count = sizeof(todel) / sizeof(todel[0]);
+  cols.resize(todel_count);
+  for (size_t i = 0; i < todel_count; ++i)
+    cols[i] = todel[i];
+  table_delete_cols(data_table, cols);
+#endif
 
   // get 2 mutually exclusive tid sets
   gen_tids_rand(train_tables[0], test_tables[0], data_table, 100);
@@ -221,7 +230,6 @@ static void train(int ac, char** av)
 
   // xxx_tables[1] has inputs, [0] has the output
   table_split_at_col(train_tables[1], train_tables[0], 3);
-  vector<unsigned int> cols;
   cols.resize(2); cols[0] = 0; cols[1] = 1;
   table_delete_cols(train_tables[0], cols);
 
@@ -235,7 +243,15 @@ static void train(int ac, char** av)
   // train the network
   gettimeofday(&start, NULL);
   struct fann* nn;
-  nn_create_and_train(&nn, train_tables[1], train_tables[0]);
+  if (retrain == false)
+  {
+    nn_create_and_train(&nn, train_tables[1], train_tables[0]);
+  }
+  else
+  {
+    nn_load(&nn, sav_path);
+    nn_train(nn, train_tables[1], train_tables[0]);
+  }
   gettimeofday(&stop, NULL);
   printf("create_and_trainting: %lf ms\n", diff(start, stop));
 
@@ -256,11 +272,22 @@ static void score(int ac, char** av)
   table data_table;
   table_read_csv_file(data_table, test_path);
 
+  vector<unsigned int> cols;
+
+#if 0
+  // delete those cols
+  static const size_t todel[] = { 10, 13, 17, 22, 26, 27, 28, 30, 31, 32 };
+  static const size_t todel_count = sizeof(todel) / sizeof(todel[0]);
+  cols.resize(todel_count);
+  for (size_t i = 0; i < todel_count; ++i)
+    cols[i] = todel[i];
+  table_delete_cols(data_table, cols);
+#endif
+
   table dummy_table, test_tables[3];
-  gen_tids_rand(dummy_table, test_tables[0], data_table, 100);
+  gen_tids_rand(dummy_table, test_tables[0], data_table, 200);
   table_destroy(data_table);
 
-  vector<unsigned int> cols;
   table_split_at_col(test_tables[1], test_tables[0], 3);
   cols.resize(2); cols[0] = 0; cols[1] = 1;
   table_delete_cols(test_tables[0], cols);
@@ -315,7 +342,13 @@ static void deriv(int ac, char** av)
     {
       size_t j = 3, k = table.col_count;
       for ( ; j < table.col_count; ++j, ++k)
-	table.rows[i][k] = table.rows[i][j] - table.rows[i - 1][j];
+      {
+	const table::data_type value = table.rows[i][j] - table.rows[i - 1][j];
+	int deriv = 0;
+	if (value < -0.001) deriv = -1;
+	else if (value > 0.001) deriv = 1;
+	table.rows[i][k] = (table::data_type)deriv;
+      }
     }
   }
 
@@ -359,7 +392,13 @@ static void derivonly(int ac, char** av)
     else // compute derivative
     {
       for (size_t j = 3; j < output_table.col_count; ++j)
-	output_table.rows[i][j] = input_table.rows[i][j] - input_table.rows[i - 1][j];
+      {
+	const table::data_type value = input_table.rows[i][j] - input_table.rows[i - 1][j];
+	int deriv = 0;
+	if (value < -0.001) deriv = -1;
+	else if (value > 0.001) deriv = 1;
+	output_table.rows[i][j] = (table::data_type)deriv;
+      }
     }
   }
 
@@ -374,6 +413,7 @@ int main(int ac, char** av)
 {
   if (ac <= 2) printf("invalid command line\n");
   else if (strcmp(av[1], "train") == 0) train(ac - 2, av + 2);
+  else if (strcmp(av[1], "retrain") == 0) train(ac - 2, av + 2, true);
   else if (strcmp(av[1], "submit") == 0) submit(ac - 2, av + 2);
   else if (strcmp(av[1], "score") == 0) score(ac - 2, av + 2);
   else if (strcmp(av[1], "deriv") == 0) deriv(ac - 2, av + 2);

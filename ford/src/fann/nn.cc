@@ -43,7 +43,7 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
 
   // create the network
 #define CONFIG_HIDDEN_LAYER_COUNT 1
-#define CONFIG_HIDDEN_NEURON_COUNT 20 // per layer
+#define CONFIG_HIDDEN_NEURON_COUNT 10 // per layer
 #define CONFIG_TOTAL_LAYER_COUNT (2 + CONFIG_HIDDEN_LAYER_COUNT)
   unsigned int layers[CONFIG_TOTAL_LAYER_COUNT];
   layers[0] = in_table.col_count;
@@ -56,12 +56,54 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
 
   // create train set and train the network
   if (create_train_set(&train_data, in_table, out_table) == -1) goto on_error;
+  fann_shuffle_train_data(train_data);
+
+#if 0
+  fann_scale_input_train_data(train_data, -250, 228812);
+  fann_scale_output_train_data(train_data, 0, 1);
+  fann_scale_train(*nn, train_data);
+#endif
 
   fann_set_activation_function_hidden(*nn, FANN_SIGMOID_SYMMETRIC);
   fann_set_activation_function_output(*nn, FANN_LINEAR);
   fann_set_training_algorithm(*nn, FANN_TRAIN_RPROP);
   fann_set_learning_momentum(*nn, 0.4);
-  fann_train_on_data(*nn, train_data, 400, 10, 0.01);
+  fann_train_on_data(*nn, train_data, 100, 10, 0.01);
+
+  // success
+  error = 0;
+
+ on_error:
+  if (train_data != NULL) fann_destroy_train(train_data);
+  return error;
+}
+
+int nn_train(struct fann* nn, struct table& in_table, struct table& out_table)
+{
+  struct fann_train_data* train_data = NULL;
+  int error = -1;
+
+  // create the network
+  unsigned int layers[CONFIG_TOTAL_LAYER_COUNT];
+  layers[0] = in_table.col_count;
+  for (size_t i = 0; i < CONFIG_HIDDEN_LAYER_COUNT; ++i)
+    layers[i + 1] = CONFIG_HIDDEN_NEURON_COUNT;
+  layers[CONFIG_HIDDEN_LAYER_COUNT + 1] = out_table.col_count;
+
+  // create train set and train the network
+  if (create_train_set(&train_data, in_table, out_table) == -1) goto on_error;
+
+#if 0
+  fann_scale_input_train_data(train_data, -250, 228812);
+  fann_scale_output_train_data(train_data, 0, 1);
+  fann_scale_train(nn, train_data);
+#endif
+
+  fann_set_activation_function_hidden(nn, FANN_SIGMOID_SYMMETRIC);
+  fann_set_activation_function_output(nn, FANN_LINEAR);
+  fann_set_training_algorithm(nn, FANN_TRAIN_RPROP);
+  fann_set_learning_momentum(nn, 0.4);
+  fann_train_on_data(nn, train_data, 100, 10, 0.01);
 
   // success
   error = 0;
