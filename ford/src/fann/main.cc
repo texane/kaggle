@@ -100,7 +100,7 @@ static inline void get_tids_eq
 }
 
 
-#if 1 // generate a random permutation
+#if 0 // generate a random permutation
 
 static inline void init_rand_once()
 {
@@ -197,6 +197,34 @@ static void submit(int ac, char** av)
 } // submission
 
 
+static void delete_cols(table& table)
+{
+  // delete those cols
+  // static const size_t todel[] = { 10, 13, 17, 22, 26, 27, 28, 30, 31, 32 };
+  // static const size_t todel_count = sizeof(todel) / sizeof(todel[0]);
+
+#if 0
+  const size_t todel_count = 33 - 20;
+  unsigned int todel[todel_count];
+  for (size_t i = 0; i < todel_count; ++i)
+    todel[i] = 20 + i;
+#elif 0
+  static const unsigned int todel[] =
+    { 3, 4, 5, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32 };
+  static const size_t todel_count = sizeof(todel) / sizeof(todel[0]);
+#else
+  static const size_t todel_count = 0;
+  const unsigned int todel[] = {};
+#endif
+
+  vector<unsigned int> cols;
+  cols.resize(todel_count);
+  for (size_t i = 0; i < todel_count; ++i)
+    cols[i] = todel[i];
+  table_delete_cols(table, cols);
+}
+
+
 static void train(int ac, char** av, bool retrain = false)
 {
   const char* const train_path = av[0];
@@ -214,18 +242,10 @@ static void train(int ac, char** av, bool retrain = false)
 
   table_read_csv_file(data_table, train_path);
 
-#if 0
-  // delete those cols
-  static const size_t todel[] = { 10, 13, 17, 22, 26, 27, 28, 30, 31, 32 };
-  static const size_t todel_count = sizeof(todel) / sizeof(todel[0]);
-  cols.resize(todel_count);
-  for (size_t i = 0; i < todel_count; ++i)
-    cols[i] = todel[i];
-  table_delete_cols(data_table, cols);
-#endif
+  delete_cols(data_table);
 
   // get 2 mutually exclusive tid sets
-  gen_tids_rand(train_tables[0], test_tables[0], data_table, 100);
+  gen_tids_rand(train_tables[0], test_tables[0], data_table, 500);
   table_destroy(data_table);
 
   // xxx_tables[1] has inputs, [0] has the output
@@ -272,23 +292,15 @@ static void score(int ac, char** av)
   table data_table;
   table_read_csv_file(data_table, test_path);
 
-  vector<unsigned int> cols;
-
-#if 0
-  // delete those cols
-  static const size_t todel[] = { 10, 13, 17, 22, 26, 27, 28, 30, 31, 32 };
-  static const size_t todel_count = sizeof(todel) / sizeof(todel[0]);
-  cols.resize(todel_count);
-  for (size_t i = 0; i < todel_count; ++i)
-    cols[i] = todel[i];
-  table_delete_cols(data_table, cols);
-#endif
+  delete_cols(data_table);
 
   table dummy_table, test_tables[3];
-  gen_tids_rand(dummy_table, test_tables[0], data_table, 200);
+  gen_tids_rand(dummy_table, test_tables[0], data_table, 100);
   table_destroy(data_table);
 
   table_split_at_col(test_tables[1], test_tables[0], 3);
+
+  vector<unsigned int> cols;
   cols.resize(2); cols[0] = 0; cols[1] = 1;
   table_delete_cols(test_tables[0], cols);
 
