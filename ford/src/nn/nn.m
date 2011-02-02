@@ -446,3 +446,35 @@ endfunction
 function nn_diff(data)
   deriv = diff(data)
 endfunction
+
+function val_stats = nn_stats_value(data, value)
+  val_rows = find(data(:,3) == value)';
+  val_data = data(val_rows,:);
+
+  # sid['median', 'mean', 'dev', 'min', 'max', 'mode', 'freq']
+  val_stats = zeros(33, 7);
+  for sid = 4:33
+    val_stats(sid,1) = median(val_data(:, sid));
+    val_stats(sid,2) = mean(val_data(:, sid));
+    val_stats(sid,3) = std(val_data(:, sid));
+    val_stats(sid,4) = min(val_data(:, sid));
+    val_stats(sid,5) = max(val_data(:, sid));
+    [val_stats(sid,6), val_stats(sid,7), dummy] = mode(val_data(:, sid));
+  end
+endfunction
+
+function nn_print_stats(zero_stats, one_stats)
+  for sid = 4:33
+    for col = 1:7 printf(" %.3f", zero_stats(sid,col)); end
+    printf("\n");
+    for col = 1:7 printf(" %.3f", one_stats(sid,col)); end
+    printf("\n");
+    printf("\n");
+  end
+endfunction
+
+function nn_stats(data)
+  zero_stats = nn_stats_value(data, 0);
+  one_stats = nn_stats_value(data, 1);
+  nn_print_stats(zero_stats, one_stats);
+endfunction
