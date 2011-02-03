@@ -465,6 +465,7 @@ endfunction
 
 function nn_print_stats(zero_stats, one_stats)
   for sid = 4:33
+    printf("[%d]\n", sid);
     for col = 1:7 printf(" %.3f", zero_stats(sid,col)); end
     printf("\n");
     for col = 1:7 printf(" %.3f", one_stats(sid,col)); end

@@ -1,3 +1,6 @@
+. to be quantized signals
+ . 4, 23, 28, 33
+
 . todos
  . ajouter les colonnes concernant les derivees et entrainer le reseau la dessus
   . entrainer seulement sur les derivees? avec amplitudes?

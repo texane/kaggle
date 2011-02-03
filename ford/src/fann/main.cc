@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <sys/time.h>
 #include <vector>
 #include "table.hh"
@@ -224,6 +225,15 @@ static void delete_cols(table& table)
   table_delete_cols(table, cols);
 }
 
+static void replace_cols(table& table)
+{
+  for (size_t i = 0; i < table.row_count; ++i)
+  {
+    table.rows[i][4] = table.rows[i][19];
+    table.rows[i][6] = table.rows[i][19];
+    table.rows[i][9] = table.rows[i][19];
+  }
+}
 
 static void train(int ac, char** av, bool retrain = false)
 {
@@ -234,7 +244,7 @@ static void train(int ac, char** av, bool retrain = false)
 
   table data_table;
   table train_tables[2];
-  table test_tables[3];
+  table dummy_table;
 
   vector<unsigned int> cols;
 
@@ -242,20 +252,17 @@ static void train(int ac, char** av, bool retrain = false)
 
   table_read_csv_file(data_table, train_path);
 
+  replace_cols(data_table);
   delete_cols(data_table);
 
   // get 2 mutually exclusive tid sets
-  gen_tids_rand(train_tables[0], test_tables[0], data_table, 500);
+  gen_tids_rand(train_tables[0], dummy_table, data_table, 400);
   table_destroy(data_table);
 
   // xxx_tables[1] has inputs, [0] has the output
   table_split_at_col(train_tables[1], train_tables[0], 3);
   cols.resize(2); cols[0] = 0; cols[1] = 1;
   table_delete_cols(train_tables[0], cols);
-
-  table_split_at_col(test_tables[1], test_tables[0], 3);
-  cols.resize(2); cols[0] = 0; cols[1] = 1;
-  table_delete_cols(test_tables[0], cols);
 
   gettimeofday(&stop, NULL);
   printf("reading_formating: %lf ms\n", diff(start, stop));
@@ -292,6 +299,7 @@ static void score(int ac, char** av)
   table data_table;
   table_read_csv_file(data_table, test_path);
 
+  replace_cols(data_table);
   delete_cols(data_table);
 
   table dummy_table, test_tables[3];
@@ -306,6 +314,8 @@ static void score(int ac, char** av)
 
   nn_eval(nn, test_tables[1], test_tables[2]);
 
+  unsigned int missed[2] = {0, 0};
+
   // eval the score
   table& real_table = test_tables[0];
   table& eval_table = test_tables[2];
@@ -314,13 +324,22 @@ static void score(int ac, char** av)
   {
     for (size_t j = 0; j < eval_table.col_count; ++j)
     {
-      const double value = eval_table.rows[i][j] < 0.5 ? 0.f : 1.f;
+      double value = eval_table.rows[i][j] < 0.5 ? 0.f : 1.f;
       if (real_table.rows[i][j] == value) ++sum;
+      else
+      {
+	if (real_table.rows[i][j] == 0) ++missed[0];
+	else ++missed[1];
+      }
     }
   }
 
   const unsigned int total_count = eval_table.row_count * eval_table.col_count;
-  printf("score: %lf (%u)\n", (double)sum / (double)total_count, total_count);
+  printf("score: %lf (%u/%u: %u/%u=%lf)\n",
+	 (double)sum / (double)total_count,
+	 missed[0] + missed[1], total_count,
+	 missed[0], missed[1],
+	 (double)missed[0] / (double)missed[1]);
 
 } // score
 
@@ -418,6 +437,122 @@ static void derivonly(int ac, char** av)
   
 } // derivonly
 
+static void quantize(int ac, char** av)
+{
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
+
+  table input_table, output_table;
+
+  table_read_csv_file(input_table, input_path);
+
+  // find min max
+  vector<table::data_type> min; min.resize(input_table.col_count);
+  vector<table::data_type> max; max.resize(input_table.col_count);
+
+  for (size_t col = 3; col < input_table.col_count; ++col)
+  {
+    min[col] = +1000000.f;
+    max[col] = -1000000.f;
+    for (size_t row = 0; row < input_table.row_count; ++row)
+    {
+      const table::data_type value = input_table.rows[row][col];
+      if (value < min[col]) min[col] = value;
+      if (value > max[col]) max[col] = value;
+    }
+  }
+
+  // scales
+  vector<table::data_type> scales; scales.resize(input_table.col_count);
+  for (size_t col = 0; col < input_table.col_count; ++col)
+  {
+    scales[col] = 0.f;
+    if (min[col] == max[col]) continue ;
+    scales[col] = 128.f / (max[col] - min[col]);
+  }
+
+  // quantize
+  output_table.col_count = input_table.col_count;
+  output_table.row_count = input_table.row_count;
+  output_table.rows.resize(output_table.row_count);
+
+  for (size_t row = 0; row < input_table.row_count; ++row)
+  {
+    output_table.rows[row].resize(output_table.col_count);
+
+    output_table.rows[row][0] = input_table.rows[row][0];
+    output_table.rows[row][1] = input_table.rows[row][1];
+    output_table.rows[row][2] = input_table.rows[row][2];
+
+    for (size_t col = 3; col < input_table.col_count; ++col)
+    {
+      output_table.rows[row][col] =
+	floor(scales[col] * (input_table.rows[row][col] - min[col]));
+    }
+  }
+
+  table_write_csv_file(output_table, output_path);
+
+} // quantize
+
+
+static void average(int ac, char** av)
+{
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
+
+  // window size
+  const size_t w = (size_t)atoi(av[2]);
+
+  table input_table, output_table;
+
+  table_read_csv_file(input_table, input_path);
+
+  // resize and prefill the table
+  output_table.col_count = input_table.col_count;
+  output_table.row_count = input_table.row_count;
+  output_table.rows.resize(output_table.row_count);
+  for (size_t row = 0; row < output_table.row_count; ++row)
+  {
+    output_table.rows[row].resize(output_table.col_count);
+    output_table.rows[row][0] = input_table.rows[row][0];
+    output_table.rows[row][1] = input_table.rows[row][1];
+    output_table.rows[row][2] = input_table.rows[row][2];
+  }
+
+  // average
+  for (size_t row = 0; row < output_table.row_count; )
+  {
+    const table::data_type tid = output_table.rows[row][0];
+
+    // new tid, lag the w first rows
+    for (size_t i = 0; i < (w - 1); ++i, ++row)
+    {
+      if (row >= output_table.row_count) break ;
+      if (output_table.rows[row][0] != tid) break ;
+      
+      for (size_t j = 3; j < output_table.col_count; ++j)
+	output_table.rows[row][j] = input_table.rows[row][j];
+    }
+
+    // average the remaining rows
+    for (; row < output_table.row_count; ++row)
+    {
+      if (output_table.rows[row][0] != tid) break ;
+
+      for (size_t col = 3; col < input_table.col_count; ++col)
+      {
+	table::data_type sum = 0.f;
+	for (size_t k = 0; k < w; ++k)
+	  sum += input_table.rows[row - k][col];
+	output_table.rows[row][col] = sum / (double)w;
+      }
+    }
+  }
+
+  table_write_csv_file(output_table, output_path);
+
+} // average
 
 // main
 
@@ -430,5 +565,7 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "score") == 0) score(ac - 2, av + 2);
   else if (strcmp(av[1], "deriv") == 0) deriv(ac - 2, av + 2);
   else if (strcmp(av[1], "derivonly") == 0) derivonly(ac - 2, av + 2);
+  else if (strcmp(av[1], "quantize") == 0) quantize(ac - 2, av + 2);
+  else if (strcmp(av[1], "average") == 0) average(ac - 2, av + 2);
   return 0;
 }
