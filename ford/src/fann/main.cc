@@ -554,6 +554,38 @@ static void average(int ac, char** av)
 
 } // average
 
+
+static void slice(int ac, char** av)
+{
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
+
+  // inclusive
+  size_t row_lo = atoi(av[2]);
+  size_t row_hi = atoi(av[3]);
+
+  table input_table, output_table;
+
+  table_read_csv_file(input_table, input_path);
+  if (row_hi >= input_table.row_count)
+    row_hi = input_table.row_count - 1;
+
+  // resize and prefill the table
+  output_table.col_count = input_table.col_count;
+  output_table.row_count = row_hi - row_lo + 1;
+  output_table.rows.resize(output_table.row_count);
+  for (size_t row_pos = 0; row_lo <= row_hi; ++row_lo, ++row_pos)
+  {
+    output_table.rows[row_pos].resize(output_table.col_count);
+    for (size_t col = 0; col < output_table.col_count; ++col)
+      output_table.rows[row_pos][col] = input_table.rows[row_lo][col];
+  }
+
+  table_write_csv_file(output_table, output_path);
+
+} // slice
+
+
 // main
 
 int main(int ac, char** av)
@@ -567,5 +599,6 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "derivonly") == 0) derivonly(ac - 2, av + 2);
   else if (strcmp(av[1], "quantize") == 0) quantize(ac - 2, av + 2);
   else if (strcmp(av[1], "average") == 0) average(ac - 2, av + 2);
+  else if (strcmp(av[1], "slice") == 0) slice(ac - 2, av + 2);
   return 0;
 }

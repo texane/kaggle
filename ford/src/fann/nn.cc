@@ -43,7 +43,7 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
 
   // create the network
 #define CONFIG_HIDDEN_LAYER_COUNT 1
-#define CONFIG_HIDDEN_NEURON_COUNT 20 // per layer
+#define CONFIG_HIDDEN_NEURON_COUNT 50 // per layer
 #define CONFIG_TOTAL_LAYER_COUNT (2 + CONFIG_HIDDEN_LAYER_COUNT)
   unsigned int layers[CONFIG_TOTAL_LAYER_COUNT];
   layers[0] = in_table.col_count;
@@ -68,7 +68,7 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
   fann_set_activation_function_output(*nn, FANN_LINEAR);
   fann_set_training_algorithm(*nn, FANN_TRAIN_RPROP);
 //   fann_set_learning_momentum(*nn, 0.4);
-  fann_train_on_data(*nn, train_data, 500, 10, 0.01);
+  fann_train_on_data(*nn, train_data, 1000, 10, 0.01);
 
   // success
   error = 0;
