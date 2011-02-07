@@ -189,7 +189,16 @@ static void submit(int ac, char** av)
 
   for (size_t i = 0; i < output_table.row_count; ++i)
   {
-    const double value = output_table.rows[i][0] < 0.5 ? 0.f : 1.f;
+    double value = output_table.rows[i][0] < 0.5 ? 0.f : 1.f;
+
+#define CONFIG_USE_ATTR18 1
+#if CONFIG_USE_ATTR18
+#define THRESHOLD_ATTR18 128
+#define COL_ATTR18 (8 - 3)
+    if (input_tables[1].rows[i][COL_ATTR18] == THRESHOLD_ATTR18)
+      value = 0;
+#endif
+
     input_tables[0].rows[i][2] = value;
   }
 
@@ -227,11 +236,25 @@ static void delete_cols(table& table)
 
 static void replace_cols(table& table)
 {
+#if 0
   for (size_t i = 0; i < table.row_count; ++i)
   {
     table.rows[i][4] = table.rows[i][19];
     table.rows[i][6] = table.rows[i][19];
     table.rows[i][9] = table.rows[i][19];
+  }
+#endif
+}
+
+static void dupzeros(table& table)
+{
+  const size_t row_count = table.row_count;
+  vector<size_t> rows;
+  for (size_t i = 0; i < row_count; ++i)
+  {
+    if (table.rows[i][2] == 1) continue ;
+    table.rows.push_back(table.rows[i]);
+    ++table.row_count;
   }
 }
 
@@ -258,6 +281,9 @@ static void train(int ac, char** av, bool retrain = false)
   // get 2 mutually exclusive tid sets
   gen_tids_rand(train_tables[0], dummy_table, data_table, 400);
   table_destroy(data_table);
+
+  // duplicate zeros
+  // dupzeros(train_tables[0]);
 
   // xxx_tables[1] has inputs, [0] has the output
   table_split_at_col(train_tables[1], train_tables[0], 3);
@@ -324,7 +350,13 @@ static void score(int ac, char** av)
   {
     for (size_t j = 0; j < eval_table.col_count; ++j)
     {
-      double value = eval_table.rows[i][j] < 0.5 ? 0.f : 1.f;
+      double value = eval_table.rows[i][j] <= 0.5 ? 0.f : 1.f;
+
+#if CONFIG_USE_ATTR18
+      if (test_tables[1].rows[i][COL_ATTR18] == THRESHOLD_ATTR18)
+	value = 0;
+#endif
+
       if (real_table.rows[i][j] == value) ++sum;
       else
       {
@@ -560,30 +592,66 @@ static void slice(int ac, char** av)
   const char* const input_path = av[0];
   const char* const output_path = av[1];
 
-  // inclusive
-  size_t row_lo = atoi(av[2]);
-  size_t row_hi = atoi(av[3]);
+  table input_table;
+  table_read_csv_file(input_table, input_path);
+
+  // item to delete. assume sorted
+  bool is_cols = (strcmp(av[2], "cols") == 0);
+  vector<size_t> indices;
+  for (size_t i = 3; i < (size_t)ac; ++i)
+    indices.push_back(atoi(av[i]));
+  if (is_cols) table_delete_cols(input_table, indices);
+  else table_delete_rows(input_table, indices);
+
+  table_write_csv_file(input_table, output_path);
+
+} // slice
+
+
+static void filter(int ac, char** av)
+{
+  // filter rows whose isAlert == 0
+
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
 
   table input_table, output_table;
-
   table_read_csv_file(input_table, input_path);
-  if (row_hi >= input_table.row_count)
-    row_hi = input_table.row_count - 1;
+  
+  vector<size_t> rows;
+  for (size_t i = 0; i < input_table.row_count; ++i)
+    if (input_table.rows[i][2] == 0)
+      rows.push_back(i);
 
-  // resize and prefill the table
-  output_table.col_count = input_table.col_count;
-  output_table.row_count = row_hi - row_lo + 1;
-  output_table.rows.resize(output_table.row_count);
-  for (size_t row_pos = 0; row_lo <= row_hi; ++row_lo, ++row_pos)
-  {
-    output_table.rows[row_pos].resize(output_table.col_count);
-    for (size_t col = 0; col < output_table.col_count; ++col)
-      output_table.rows[row_pos][col] = input_table.rows[row_lo][col];
-  }
+  table_extract_rows(output_table, input_table, rows);
 
   table_write_csv_file(output_table, output_path);
 
-} // slice
+} // filter
+
+
+static void dupzeros(int ac, char** av)
+{
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
+
+  table input_table;
+  table_read_csv_file(input_table, input_path);
+  
+  const size_t row_count = input_table.row_count;
+  vector<size_t> rows;
+  for (size_t i = 0; i < row_count; ++i)
+  {
+    if (input_table.rows[i][2] == 0)
+    {
+      input_table.rows.push_back(input_table.rows[i]);
+      ++input_table.row_count;
+    }
+  }
+
+  table_write_csv_file(input_table, output_path);
+
+} // dupzeros
 
 
 // main
@@ -600,5 +668,7 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "quantize") == 0) quantize(ac - 2, av + 2);
   else if (strcmp(av[1], "average") == 0) average(ac - 2, av + 2);
   else if (strcmp(av[1], "slice") == 0) slice(ac - 2, av + 2);
+  else if (strcmp(av[1], "filter") == 0) filter(ac - 2, av + 2);
+  else if (strcmp(av[1], "dupzeros") == 0) dupzeros(ac - 2, av + 2);
   return 0;
 }

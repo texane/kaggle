@@ -281,6 +281,15 @@ void table_delete_cols(table& table, const vector<unsigned int>& cols)
   table.col_count -= cols.size();
 }
 
+void table_delete_rows(table& table, const vector<unsigned int>& rows)
+{
+  // assume rows sorted in ascending order
+
+  for (size_t i = 0; i < rows.size(); ++i)
+    table.rows.erase(table.rows.begin() + (rows[i] - i));
+  table.row_count -= rows.size();
+}
+
 void table_extract_rows
 (table& new_table, const table& table, const vector<unsigned int>& rows)
 {

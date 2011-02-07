@@ -42,8 +42,8 @@ int nn_create_and_train(struct fann** nn, table& in_table, table& out_table)
   int error = -1;
 
   // create the network
-#define CONFIG_HIDDEN_LAYER_COUNT 1
-#define CONFIG_HIDDEN_NEURON_COUNT 50 // per layer
+#define CONFIG_HIDDEN_LAYER_COUNT 2
+#define CONFIG_HIDDEN_NEURON_COUNT 15 // per layer
 #define CONFIG_TOTAL_LAYER_COUNT (2 + CONFIG_HIDDEN_LAYER_COUNT)
   unsigned int layers[CONFIG_TOTAL_LAYER_COUNT];
   layers[0] = in_table.col_count;

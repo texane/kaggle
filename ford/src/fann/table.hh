@@ -32,6 +32,7 @@ int table_write_csv_file(const table&, const char*);
 void table_extract_cols(table&, const table&, const vector<unsigned int>&);
 void table_extract_rows(table&, const table&, const vector<unsigned int>&);
 void table_delete_cols(table&, const vector<unsigned int>&);
+void table_delete_rows(table&, const vector<unsigned int>&);
 void table_split_at_col(table&, table&, unsigned int);
 void table_split_at_row(table&, table&, unsigned int);
 void table_print(const table&);
