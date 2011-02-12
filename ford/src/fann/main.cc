@@ -712,19 +712,70 @@ static void split(int ac, char** av)
   const char* const input_path = av[0];
   const char* output_paths[2] = { av[1], av[2] };
 
+  bool by_tids = true;
+  if (strcmp(av[3], "rows") == 0) by_tids = false;
+
   table input_table, output_tables[2];
-
   table_read_csv_file(input_table, input_path);
-  vector<size_t> rows;
-  rows.resize(input_table.row_count);
-  for (size_t row = 0; row < rows.size(); ++row) rows[row] = row;
-  shuffle(rows);
 
+  vector<size_t> rows;
   typedef pair<vector<size_t>::iterator, vector<size_t>::iterator> pair_type;
   pair_type iters[2];
-  iters[1] = pair_type(rows.begin(), rows.begin() + (rows.size() / 5));
-  iters[0] = pair_type(iters[1].second, rows.end());
 
+  if (by_tids == true)
+  {
+    vector<size_t> tids;
+    tids.resize(510);
+    for (size_t tid = 0; tid < tids.size(); ++tid) tids[tid] = tid;
+    shuffle(tids);
+    tids.resize(510 / 5); // the ones in the second set
+
+    vector<size_t>& first = rows;
+    vector<size_t> second;
+    size_t first_count = 0;
+    size_t second_count = 0;
+
+    // make them large enough
+    first.resize(input_table.row_count);
+    second.resize(input_table.row_count);
+
+    for (size_t row = 0; row < input_table.row_count; ++row)
+    {
+      // is in the second tid set
+      bool is_second = false;
+      for (size_t i = 0; i < tids.size(); ++i)
+	if (input_table.rows[row][0] == tids[i])
+	{
+	  is_second = true;
+	  break ;
+	}
+
+      if (is_second == false) first[first_count++] = row;
+      else second[second_count++] = row;
+    }
+
+    // resize back
+    second.resize(second_count);
+
+    // concat second to rows
+    const size_t saved_count = first_count;
+    for (size_t i = 0; i < second_count; ++i, ++first_count)
+      rows[first_count] = second[i];
+
+    iters[0] = pair_type(rows.begin(), rows.begin() + saved_count);
+    iters[1] = pair_type(rows.begin() + saved_count, rows.end());
+  }
+  else // by_rows
+  {
+    rows.resize(input_table.row_count);
+    for (size_t row = 0; row < rows.size(); ++row) rows[row] = row;
+    shuffle(rows);
+
+    iters[1] = pair_type(rows.begin(), rows.begin() + (rows.size() / 5));
+    iters[0] = pair_type(iters[1].second, rows.end());
+  }
+
+  // in either cases, we have the correclty generated iters[]
   for (size_t i = 0; i < 2; ++i)
   {
     table& output_table = output_tables[i];
