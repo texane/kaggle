@@ -18,12 +18,12 @@ int kmeans(table& table, vector< vector<double> >& centers)
   // generate the data points
 
   const size_t point_count = table.row_count;
-  const size_t point_dim = table.col_count;
+  const size_t point_dim = table.col_count - 3;
 
   KMdata points(point_dim, point_count);
   for (size_t row = 0; row < table.row_count; ++row)
     for (size_t col = 3; col < table.col_count; ++col)
-      points[row][col] = table.rows[row][col];
+      points[row][col - 3] = table.rows[row][col];
 
   points.buildKcTree();
 
@@ -73,7 +73,7 @@ int main(int ac, char** av)
   // print centers
   for (size_t i = 0; i < centers.size(); ++i)
   {
-    for (size_t j = 0; j < centers[j].size(); ++j)
+    for (size_t j = 0; j < centers[i].size(); ++j)
       printf("%lf,", centers[i][j]);
     printf("\n");
   }

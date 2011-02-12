@@ -923,6 +923,30 @@ static void kmeans(int ac, char** av)
 }
 
 
+// clustering. relies on the C clustering library
+
+int kmeans(table&, vector< vector<double> >&);
+
+static void cluster(int ac, char** av)
+{
+  const char* const input_path = av[0];
+  table input_table;
+  table_read_csv_file(input_table, input_path);
+
+  vector< vector<double> > centers(2);
+  kmeans(input_table, centers);
+
+  // print centers
+  for (size_t i = 0; i < centers.size(); ++i)
+  {
+    for (size_t j = 0; j < centers[i].size(); ++j)
+      printf("%lf,", centers[i][j]);
+    printf("\n");
+  }
+
+} // cluster
+
+
 // main
 
 int main(int ac, char** av)
@@ -943,5 +967,6 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "split") == 0) split(ac - 2, av + 2);
   else if (strcmp(av[1], "same") == 0) same(ac - 2, av + 2);
   else if (strcmp(av[1], "kmeans") == 0) kmeans(ac - 2, av + 2);
+  else if (strcmp(av[1], "cluster") == 0) cluster(ac - 2, av + 2);
   return 0;
 }
