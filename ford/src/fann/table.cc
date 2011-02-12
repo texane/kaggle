@@ -211,7 +211,11 @@ int table_read_csv_file(table& table, const char* path)
       row[col_pos] = value;
     }
 
-    if (col_pos != table.col_count) goto on_error;
+    if (col_pos != table.col_count)
+    {
+      // bug: if the end of file terminates with '\n'
+      goto on_error;
+    }
 
     table.rows.push_back(row);
     ++table.row_count;
@@ -286,7 +290,10 @@ void table_delete_rows(table& table, const vector<unsigned int>& rows)
   // assume rows sorted in ascending order
 
   for (size_t i = 0; i < rows.size(); ++i)
+  {
+    printf("%u\n", i);
     table.rows.erase(table.rows.begin() + (rows[i] - i));
+  }
   table.row_count -= rows.size();
 }
 

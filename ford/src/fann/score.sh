@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-./a.out score fanns/fordTrainSlicedColsAveragedQuantized.fann ../../data/fordTrainSlicedColsAveragedQuantized.csv
+./a.out score /tmp/nn.fann ../../data/fordTrainSlicedColsAveragedQuantized.csv
+# ./a.out score fanns/fordTrainSlicedColsAveragedQuantized.fann ../../data/fordTrainSlicedColsAveragedQuantized.csv
 # ./a.out score fanns/fordTrainSlicedColsAveragedQuantized_2x15.fann ../../data/fordTrainSlicedColsAveragedQuantized.csv
 # ./a.out score /tmp/nn.fann ../../data/fordTrainSlicedColsAveraged.csv
 # ./a.out score fanns/fordTrainSlicedColsAveragedQuantized.fann ../../data/fordTrainSlicedColsAveragedQuantized.csv

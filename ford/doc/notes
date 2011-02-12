@@ -1,5 +1,7 @@
-. to be quantized signals
- . 4, 23, 28, 33
+. todo
+ . impelment a neural network with the root package
+ . add non linearity topic
+   -> input x N != output x N
 
 . todos
  . ajouter les colonnes concernant les derivees et entrainer le reseau la dessus

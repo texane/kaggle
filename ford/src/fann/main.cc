@@ -6,6 +6,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include <vector>
+#include <algorithm>
 #include "table.hh"
 #include "nn.hh"
 
@@ -100,9 +101,6 @@ static inline void get_tids_eq
   table_extract_rows(new_table, table, rows);
 }
 
-
-#if 0 // generate a random permutation
-
 static inline void init_rand_once()
 {
   static bool isinit = false;
@@ -113,6 +111,8 @@ static inline void init_rand_once()
     isinit = true;
   }
 }
+
+#if 1 // generate a random permutation
 
 static void shuffle(vector<table::data_type>& perm)
 {
@@ -189,9 +189,9 @@ static void submit(int ac, char** av)
 
   for (size_t i = 0; i < output_table.row_count; ++i)
   {
-    double value = output_table.rows[i][0] < 0.5 ? 0.f : 1.f;
+    double value = output_table.rows[i][0] <= 0.5 ? 0.f : 1.f;
 
-#define CONFIG_USE_ATTR18 1
+#define CONFIG_USE_ATTR18 0
 #if CONFIG_USE_ATTR18
 #define THRESHOLD_ATTR18 128
 #define COL_ATTR18 (8 - 3)
@@ -314,6 +314,8 @@ static void train(int ac, char** av, bool retrain = false)
 } // train
 
 
+double compute_auc(double*, double*, unsigned int);
+
 static void score(int ac, char** av)
 {
   const char* const nn_path = av[0];
@@ -329,7 +331,7 @@ static void score(int ac, char** av)
   delete_cols(data_table);
 
   table dummy_table, test_tables[3];
-  gen_tids_rand(dummy_table, test_tables[0], data_table, 100);
+  gen_tids_rand(dummy_table, test_tables[0], data_table, (510 - 30));
   table_destroy(data_table);
 
   table_split_at_col(test_tables[1], test_tables[0], 3);
@@ -346,6 +348,10 @@ static void score(int ac, char** av)
   table& real_table = test_tables[0];
   table& eval_table = test_tables[2];
   unsigned int sum = 0.f;
+
+  double* const sub = (double*)malloc(sizeof(double) * eval_table.row_count);
+  double* const sol = (double*)malloc(sizeof(double) * eval_table.row_count);
+
   for (size_t i = 0; i < eval_table.row_count; ++i)
   {
     for (size_t j = 0; j < eval_table.col_count; ++j)
@@ -356,6 +362,9 @@ static void score(int ac, char** av)
       if (test_tables[1].rows[i][COL_ATTR18] == THRESHOLD_ATTR18)
 	value = 0;
 #endif
+
+      sub[i] = value;
+      sol[i] = real_table.rows[i][j];
 
       if (real_table.rows[i][j] == value) ++sum;
       else
@@ -372,6 +381,10 @@ static void score(int ac, char** av)
 	 missed[0] + missed[1], total_count,
 	 missed[0], missed[1],
 	 (double)missed[0] / (double)missed[1]);
+
+  printf("auc: %lf\n", compute_auc(sub, sol, eval_table.row_count));
+  free(sub);
+  free(sol);
 
 } // score
 
@@ -654,6 +667,62 @@ static void dupzeros(int ac, char** av)
 } // dupzeros
 
 
+static void shuffle(vector<size_t>& perm)
+{
+  init_rand_once();
+
+  for (size_t i = 0; i < (perm.size() - 1); ++i)
+  {
+    size_t r = i + (rand() % (perm.size() - i));
+    std::swap(perm[r], perm[i]);
+  }
+}
+
+static void balance(int ac, char** av)
+{
+  // count(zero) == count(ones) by randomly removing from the largest one
+
+  const char* const input_path = av[0];
+  const char* const output_path = av[1];
+
+  table input_table;
+  table_read_csv_file(input_table, input_path);
+
+  // build zeros and ones
+  vector<size_t> zerones[2];
+  for (size_t row = 0; row < input_table.row_count; ++row)
+    zerones[(size_t)input_table.rows[row][2]].push_back(row);
+
+  const size_t min = (zerones[0].size() < zerones[1].size() ? 0 : 1);
+  const size_t max = (min == 0 ? 1 : 0);
+
+  // make a shuffled vector of the biggest one and resize
+  shuffle(zerones[max]);
+  zerones[max].resize(zerones[min].size());
+
+  // build the new table
+  table new_table;
+  new_table.col_count = input_table.col_count;
+  new_table.row_count = zerones[min].size() * 2;
+  new_table.rows.resize(new_table.row_count);
+
+  size_t row = 0;
+
+  for (size_t i = 0; i < 2; ++i)
+  {
+    for (size_t pos = 0; pos < zerones[i].size(); ++row, ++pos)
+    {
+      new_table.rows[row].resize(new_table.col_count);
+      for (size_t col = 0; col < new_table.col_count; ++col)
+	new_table.rows[row][col] = input_table.rows[zerones[i][pos]][col];
+    }
+  }
+  
+  table_write_csv_file(new_table, output_path);
+
+} // balance
+
+
 // main
 
 int main(int ac, char** av)
@@ -670,5 +739,6 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "slice") == 0) slice(ac - 2, av + 2);
   else if (strcmp(av[1], "filter") == 0) filter(ac - 2, av + 2);
   else if (strcmp(av[1], "dupzeros") == 0) dupzeros(ac - 2, av + 2);
+  else if (strcmp(av[1], "balance") == 0) balance(ac - 2, av + 2);
   return 0;
 }
