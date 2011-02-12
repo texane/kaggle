@@ -11,4 +11,7 @@
 # ./a.out train ../../data/fordTrainSlicedColsAveragedQuantized.csv /tmp/nn.fann
 # ./a.out train ../../data/fordTrainSlicedColsAveragedQuantizedDuped.csv /tmp/nn.fann
 # ./a.out train ../../data/fordTrainSlicedColsAveragedQuantizedDerived.csv /tmp/nn.fann
-./a.out train ../../data/fordTrainSlicedColsAveragedQuantizedBalanced.csv /tmp/nn.fann
+# ./a.out train ../../data/fordTrainSlicedColsAveragedQuantizedBalanced.csv /tmp/nn.fann
+./a.out train ../../data/fordTrain_train_balanced.csv /tmp/nn.fann
+
+

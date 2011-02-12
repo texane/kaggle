@@ -7,11 +7,13 @@
 #include <sys/time.h>
 #include <vector>
 #include <algorithm>
+#include <utility>
 #include "table.hh"
 #include "nn.hh"
 
 
 using std::vector;
+using std::pair;
 
 
 // find rows whose tid is less or equal tid
@@ -207,7 +209,7 @@ static void submit(int ac, char** av)
 } // submission
 
 
-static void delete_cols(table& table)
+static void __attribute__((unused)) delete_cols(table& table)
 {
   // delete those cols
   // static const size_t todel[] = { 10, 13, 17, 22, 26, 27, 28, 30, 31, 32 };
@@ -234,7 +236,7 @@ static void delete_cols(table& table)
   table_delete_cols(table, cols);
 }
 
-static void replace_cols(table& table)
+static void __attribute__((unused)) replace_cols(table& table)
 {
 #if 0
   for (size_t i = 0; i < table.row_count; ++i)
@@ -246,7 +248,7 @@ static void replace_cols(table& table)
 #endif
 }
 
-static void dupzeros(table& table)
+static void __attribute__((unused)) dupzeros(table& table)
 {
   const size_t row_count = table.row_count;
   vector<size_t> rows;
@@ -265,28 +267,15 @@ static void train(int ac, char** av, bool retrain = false)
 
   struct timeval start, stop;
 
-  table data_table;
   table train_tables[2];
-  table dummy_table;
-
-  vector<unsigned int> cols;
 
   gettimeofday(&start, NULL);
 
-  table_read_csv_file(data_table, train_path);
-
-  replace_cols(data_table);
-  delete_cols(data_table);
-
-  // get 2 mutually exclusive tid sets
-  gen_tids_rand(train_tables[0], dummy_table, data_table, 400);
-  table_destroy(data_table);
-
-  // duplicate zeros
-  // dupzeros(train_tables[0]);
+  table_read_csv_file(train_tables[0], train_path);
 
   // xxx_tables[1] has inputs, [0] has the output
   table_split_at_col(train_tables[1], train_tables[0], 3);
+  vector<size_t> cols;
   cols.resize(2); cols[0] = 0; cols[1] = 1;
   table_delete_cols(train_tables[0], cols);
 
@@ -324,16 +313,8 @@ static void score(int ac, char** av)
   struct fann* nn;
   nn_load(&nn, nn_path);
 
-  table data_table;
-  table_read_csv_file(data_table, test_path);
-
-  replace_cols(data_table);
-  delete_cols(data_table);
-
-  table dummy_table, test_tables[3];
-  gen_tids_rand(dummy_table, test_tables[0], data_table, (510 - 30));
-  table_destroy(data_table);
-
+  table test_tables[3];
+  table_read_csv_file(test_tables[0], test_path);
   table_split_at_col(test_tables[1], test_tables[0], 3);
 
   vector<unsigned int> cols;
@@ -722,6 +703,49 @@ static void balance(int ac, char** av)
 
 } // balance
 
+static void split(int ac, char** av)
+{
+  // split the input set into 2
+  // appartenance condition is yet harcoded
+  // but we want 4/5 in the first set
+
+  const char* const input_path = av[0];
+  const char* output_paths[2] = { av[1], av[2] };
+
+  table input_table, output_tables[2];
+
+  table_read_csv_file(input_table, input_path);
+  vector<size_t> rows;
+  rows.resize(input_table.row_count);
+  for (size_t row = 0; row < rows.size(); ++row) rows[row] = row;
+  shuffle(rows);
+
+  typedef pair<vector<size_t>::iterator, vector<size_t>::iterator> pair_type;
+  pair_type iters[2];
+  iters[1] = pair_type(rows.begin(), rows.begin() + (rows.size() / 5));
+  iters[0] = pair_type(iters[1].second, rows.end());
+
+  for (size_t i = 0; i < 2; ++i)
+  {
+    table& output_table = output_tables[i];
+
+    output_table.col_count = input_table.col_count;
+    output_table.row_count = iters[i].second - iters[i].first;
+    output_table.rows.resize(output_table.row_count);
+
+    vector<size_t>::iterator pos = iters[i].first;
+    for (size_t row = 0; row < output_table.row_count; ++pos, ++row)
+    {
+      output_table.rows[row].resize(output_table.col_count);
+      for (size_t col = 0; col < output_table.col_count; ++col)
+	output_table.rows[row][col] = input_table.rows[*pos][col];
+    }
+
+    table_write_csv_file(output_table, output_paths[i]);
+  }
+
+} // split
+
 
 // main
 
@@ -740,5 +764,6 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "filter") == 0) filter(ac - 2, av + 2);
   else if (strcmp(av[1], "dupzeros") == 0) dupzeros(ac - 2, av + 2);
   else if (strcmp(av[1], "balance") == 0) balance(ac - 2, av + 2);
+  else if (strcmp(av[1], "split") == 0) split(ac - 2, av + 2);
   return 0;
 }
