@@ -711,9 +711,7 @@ static void split(int ac, char** av)
 
   const char* const input_path = av[0];
   const char* output_paths[2] = { av[1], av[2] };
-
-  bool by_tids = true;
-  if (strcmp(av[3], "rows") == 0) by_tids = false;
+  const char* const meth = av[3];
 
   table input_table, output_tables[2];
   table_read_csv_file(input_table, input_path);
@@ -722,13 +720,13 @@ static void split(int ac, char** av)
   typedef pair<vector<size_t>::iterator, vector<size_t>::iterator> pair_type;
   pair_type iters[2];
 
-  if (by_tids == true)
+  if (strcmp(meth, "tids") == 0)
   {
     vector<size_t> tids;
     tids.resize(510);
     for (size_t tid = 0; tid < tids.size(); ++tid) tids[tid] = tid;
-    shuffle(tids);
-    tids.resize(510 / 5); // the ones in the second set
+    // shuffle(tids);
+    tids.resize(510 / 2); // the ones in the second set
 
     vector<size_t>& first = rows;
     vector<size_t> second;
@@ -765,7 +763,7 @@ static void split(int ac, char** av)
     iters[0] = pair_type(rows.begin(), rows.begin() + saved_count);
     iters[1] = pair_type(rows.begin() + saved_count, rows.end());
   }
-  else // by_rows
+  else if (strcmp(meth, "rows") == 0)
   {
     rows.resize(input_table.row_count);
     for (size_t row = 0; row < rows.size(); ++row) rows[row] = row;
@@ -773,6 +771,43 @@ static void split(int ac, char** av)
 
     iters[1] = pair_type(rows.begin(), rows.begin() + (rows.size() / 5));
     iters[0] = pair_type(iters[1].second, rows.end());
+  }
+  else if (strcmp(meth, "isalert") == 0)
+  {
+    vector<size_t>& first = rows;
+    vector<size_t> second;
+    size_t first_count = 0;
+    size_t second_count = 0;
+
+    // make them large enough
+    first.resize(input_table.row_count);
+    second.resize(input_table.row_count);
+
+    for (size_t row = 0; row < input_table.row_count; ++row)
+    {
+      // is in the second tid set
+      bool is_second = false;
+      for (size_t i = 0; i < input_table.row_count; ++i)
+	if (input_table.rows[row][2] == false)
+	{
+	  is_second = true;
+	  break ;
+	}
+
+      if (is_second == false) first[first_count++] = row;
+      else second[second_count++] = row;
+    }
+
+    // resize back
+    second.resize(second_count);
+
+    // concat second to rows
+    const size_t saved_count = first_count;
+    for (size_t i = 0; i < second_count; ++i, ++first_count)
+      rows[first_count] = second[i];
+
+    iters[0] = pair_type(rows.begin(), rows.begin() + saved_count);
+    iters[1] = pair_type(rows.begin() + saved_count, rows.end());
   }
 
   // in either cases, we have the correclty generated iters[]
@@ -798,6 +833,96 @@ static void split(int ac, char** av)
 } // split
 
 
+static void same(int ac, char** av)
+{
+  // count equal vectors
+
+  size_t count = 0;
+
+  const char* const input_path = av[0];
+  table input_table;
+  table_read_csv_file(input_table, input_path);
+
+  for (size_t i = 0; i < input_table.row_count; ++i)
+  {
+    for (size_t j = i + 1; j < input_table.row_count; ++j)
+    {
+      bool are_equal = true;
+      for (size_t k = 3; k < input_table.row_count; ++k)
+	if (input_table.rows[i][k] != input_table.rows[j][k])
+	{
+	  are_equal = false;
+	  break ;
+	}
+      if (are_equal == true)
+      {
+	++count;
+	printf("%u / %u\n", count, input_table.row_count);
+      }
+    }
+  }
+
+  printf("count: %u / %u\n", count, input_table.row_count);
+
+} // same
+
+
+static void kmeans(int ac, char** av)
+{
+  // based on a weka kmean analysis
+  static const double centroids[][12] =
+  {
+    { 0.4566, 1.237, 68.7098, 48.7476, 4.8177, 13.002, 123.5211, 54.5451, 26.2195, 80.1387, 8.3205, 5.007 },
+    { 0.4309, 10.0318, 70.9621, 48.7899, 7.6661, 17.7821, 116.0797, 61.6878, 95.5393, 2.2767, 27.6882, 4.1169 }
+  };
+
+  const char* const input_path = av[0];
+  table input_table;
+  table_read_csv_file(input_table, input_path);
+
+  double* const sub = (double*)malloc(sizeof(double) * input_table.row_count);
+  double* const sol = (double*)malloc(sizeof(double) * input_table.row_count);
+
+  unsigned int missed[2] = {0, 0};
+  unsigned int sum = 0.;
+
+  for (size_t row = 0; row < input_table.row_count; ++row)
+  {
+    // classify according to the distance to centroids
+    double dists[2] = {0., 0.};
+    for (size_t col = 3; col < input_table.col_count; ++col)
+    {
+      dists[0] += fabs(centroids[0][col - 3] - input_table.rows[row][col]);
+      dists[1] += fabs(centroids[1][col - 3] - input_table.rows[row][col]);
+    }
+
+    // evaluate
+    double value = 0.;
+    if (dists[1] < dists[0]) value = 1.;
+
+    sub[row] = value;
+    sol[row] = input_table.rows[row][2];
+
+    if (input_table.rows[row][2] == value) ++sum;
+    else if (input_table.rows[row][2] == 0) ++missed[0];
+    else ++missed[1];
+  }
+
+  const unsigned int total_count = input_table.row_count;
+
+  printf("score: %lf (%u/%u: %u/%u=%lf)\n",
+	 (double)sum / (double)total_count,
+	 missed[0] + missed[1], total_count,
+	 missed[0], missed[1],
+	 (double)missed[0] / (double)missed[1]);
+
+  printf("auc: %lf\n", compute_auc(sub, sol, input_table.row_count));
+
+  free(sub);
+  free(sol);
+}
+
+
 // main
 
 int main(int ac, char** av)
@@ -816,5 +941,7 @@ int main(int ac, char** av)
   else if (strcmp(av[1], "dupzeros") == 0) dupzeros(ac - 2, av + 2);
   else if (strcmp(av[1], "balance") == 0) balance(ac - 2, av + 2);
   else if (strcmp(av[1], "split") == 0) split(ac - 2, av + 2);
+  else if (strcmp(av[1], "same") == 0) same(ac - 2, av + 2);
+  else if (strcmp(av[1], "kmeans") == 0) kmeans(ac - 2, av + 2);
   return 0;
 }

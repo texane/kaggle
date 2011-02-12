@@ -3,5 +3,7 @@
 # ./a.out quantize ../../data/fordTestAveraged.csv ../../data/fordTestAveragedQuantized.csv 
 # ./a.out quantize ../../data/fordDerivTrainAveraged.csv ../../data/fordDerivTrainAveragedQuantized.csv
 # ./a.out quantize ../../data/fordDerivTestAveraged.csv ../../data/fordDerivTestAveragedQuantized.csv
-# ./a.out quantize ../../data/fordTrainSlicedColsAveraged.csv ../../data/fordTrainSlicedColsAveragedQuantized.csv 10
-./a.out quantize ../../data/fordTestSlicedColsAveraged.csv ../../data/fordTestSlicedColsAveragedQuantized.csv 10
+# ./a.out quantize ../../data/fordTrainSlicedColsAveraged.csv ../../data/fordTrainSlicedColsAveragedQuantized.csv
+# ./a.out quantize ../../data/fordTestSlicedColsAveraged.csv ../../data/fordTestSlicedColsAveragedQuantized.csv
+# ./a.out quantize ../../data/fordTrain_train_averaged.csv ../../data/fordTrain_train_averaged_quantized.csv
+./a.out quantize ../../data/fordTrain_test_averaged.csv ../../data/fordTrain_test_averaged_quantized.csv

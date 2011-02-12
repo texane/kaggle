@@ -27,6 +27,7 @@
  . octave matlab neural network implementation, http://www.plexso.com/61_octave/index.html
  . torch5, http://torch5.sourceforge.net/manual/index.html
  . flood library, http://www.cimne.com/flood/download.asp
+ . weka software
 
 . homework, projects
  . http://www.cnel.ufl.edu/courses/EEL6814/EEL6814.php
@@ -34,3 +35,7 @@
 . toread
  . http://www.ibiblio.org/pub/Linux//docs/LDP/linuxfocus/English/September2004/article345.shtml
  . http://www.cnel.ufl.edu/courses/EEL6814/EEL6814.php
+
+. reference
+ . imbalance sets
+  . Mining with Rarity: A Unifying Framework
