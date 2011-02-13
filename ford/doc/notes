@@ -146,3 +146,13 @@ tid: 310
  . reference
   . http://www.physnet.uni-hamburg.de/physnet/matlab/help/toolbox/nnet/newff.html
    . explain why I get a out of memory
+
+ . status
+  . b7f5ad17ecc1ff45189a39b4db59256a87aaa640
+   . un data/fu.csv a commiter
+   . si ca marche bien, il faudrait augmenter le nmobre de neurones
+   . sinon, essayer sur de nouveau tids
+   
+
+. doc on auc
+ . http://matlabdatamining.blogspot.com/2007/06/roc-curves-and-auc.html

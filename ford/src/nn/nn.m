@@ -316,6 +316,20 @@ function scores = nn_do_score(data, nn, mean, std, cols, tids)
 endfunction
 
 
+function auc = nn_do_auc(data, nn, mean, std, cols, tids)
+  predicted = [];
+  actual = [];
+
+  for tid = tids
+    [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
+    actual = [ actual res_set' ];
+    out = nn_eval(nn, mean, std, test_set);
+    predicted = [ predicted out' ];
+  end
+  auc = SampleError(predicted, actual, 'AUC');
+endfunction
+
+
 function [nn, mean, std] = nn_do_train(data, cols)
   # generate a random set of N tids
 
