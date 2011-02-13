@@ -16,6 +16,11 @@ using std::vector;
 using std::pair;
 
 
+// missing decls
+
+extern double compute_auc(double*, double*, unsigned int);
+
+
 // find rows whose tid is less or equal tid
 
 struct leq
@@ -303,7 +308,53 @@ static void train(int ac, char** av, bool retrain = false)
 } // train
 
 
-double compute_auc(double*, double*, unsigned int);
+typedef struct cluster_info
+{
+  double center[15];
+  double proba[2];
+} cluster_info_t;
+
+static const cluster_info_t* choose_cluster
+(const table& table, size_t row)
+{
+  // from kmeans(3) analysis
+  static const size_t center_count = 3;
+  static const cluster_info_t cluster_infos[center_count] =
+  {
+    {
+      { 0.325908,1.770700,67.901658,48.765045,5.129770,13.029229,121.599612,52.265632,39.425465,125.428675,12.271451,5.106045 },
+      { 0.191985,  0.304812 }
+    },
+
+    {
+      { 0.728872,0.471048,70.693287,49.001830,4.408036,12.835551,126.452331,57.975679,9.276408,1.358080,4.226318,4.828784 },
+      { 0.095766, 0.302539 }
+    },
+
+    {
+      { 0.401797,10.536463,70.826243,48.706518,7.819421,18.092337,115.581279,62.015498,99.008148,2.662001,28.348382,4.078757 },
+      { 0.712249, 0.392649 }
+    }
+  };
+
+  size_t min_i = (size_t)-1;
+  double min_dist;
+
+  for (size_t i = 0; i < center_count; ++i)
+  {
+    double dist = 0.f;
+    for (size_t col = 3; col < table.col_count; ++col)
+      dist += fabs(cluster_infos[i].center[col - 3] - table.rows[row][col]);
+
+    if ((min_i == (size_t)-1) ||  (dist < min_dist))
+    {
+      min_i = i;
+      min_dist = dist;
+    }
+  }
+
+  return &cluster_infos[min_i];
+}
 
 static void score(int ac, char** av)
 {
@@ -335,24 +386,30 @@ static void score(int ac, char** av)
 
   for (size_t i = 0; i < eval_table.row_count; ++i)
   {
-    for (size_t j = 0; j < eval_table.col_count; ++j)
-    {
-      double value = eval_table.rows[i][j] <= 0.5 ? 0.f : 1.f;
+    const cluster_info_t* const cluster_info = choose_cluster(eval_table, i);
 
-#if CONFIG_USE_ATTR18
-      if (test_tables[1].rows[i][COL_ATTR18] == THRESHOLD_ATTR18)
-	value = 0;
+#if 0 // nn + clustering
+    double proba[2];
+    proba[0] = ((1. - eval_table.rows[i][0]) + cluster_info->proba[0]) / 2.f;
+    proba[1] = (eval_table.rows[i][0] + cluster_info->proba[1]) / 2.f;
+    double value = (proba[0] > proba[1]) ? 0. : 1.;
+#else // nn only
+    double value = eval_table.rows[i][0] <= 0.5 ? 0.f : 1.f;
 #endif
 
-      sub[i] = value;
-      sol[i] = real_table.rows[i][j];
+#if CONFIG_USE_ATTR18
+    if (test_tables[1].rows[i][COL_ATTR18] == THRESHOLD_ATTR18)
+      value = 0;
+#endif
 
-      if (real_table.rows[i][j] == value) ++sum;
-      else
-      {
-	if (real_table.rows[i][j] == 0) ++missed[0];
-	else ++missed[1];
-      }
+    sub[i] = value;
+    sol[i] = real_table.rows[i][0];
+
+    if (real_table.rows[i][0] == value) ++sum;
+    else
+    {
+      if (real_table.rows[i][0] == 0) ++missed[0];
+      else ++missed[1];
     }
   }
 
@@ -725,8 +782,8 @@ static void split(int ac, char** av)
     vector<size_t> tids;
     tids.resize(510);
     for (size_t tid = 0; tid < tids.size(); ++tid) tids[tid] = tid;
-    // shuffle(tids);
-    tids.resize(510 / 2); // the ones in the second set
+    shuffle(tids);
+    tids.resize(510 - 200); // the ones in the second set
 
     vector<size_t>& first = rows;
     vector<size_t> second;
@@ -872,8 +929,13 @@ static void kmeans(int ac, char** av)
   // based on a weka kmean analysis
   static const double centroids[][12] =
   {
-    { 0.4566, 1.237, 68.7098, 48.7476, 4.8177, 13.002, 123.5211, 54.5451, 26.2195, 80.1387, 8.3205, 5.007 },
-    { 0.4309, 10.0318, 70.9621, 48.7899, 7.6661, 17.7821, 116.0797, 61.6878, 95.5393, 2.2767, 27.6882, 4.1169 }
+#if 1 // weka
+    { 0.4309, 10.0318, 70.9621, 48.7899, 7.6661, 17.7821, 116.0797, 61.6878, 95.5393, 2.2767, 27.6882, 4.1169 },
+    { 0.4566, 1.237, 68.7098, 48.7476, 4.8177, 13.002, 123.5211, 54.5451, 26.2195, 80.1387, 8.3205, 5.007 }
+#else // cluster.sh
+    { 0.477233,8.173461,70.801004,48.767564,6.999122,16.849469,118.173362,61.065259,77.923839,2.102179,22.686370,4.254969 },
+    { 0.332135,1.820837,67.913993,48.790537,5.202124,13.086831,121.461889,52.356948,39.732235,124.890802,12.336649,5.097967 }
+#endif
   };
 
   const char* const input_path = av[0];
@@ -923,7 +985,52 @@ static void kmeans(int ac, char** av)
 }
 
 
-// clustering. relies on the C clustering library
+// clustering. relies on the kmlocal library.
+
+static void get_point_centers
+(vector<size_t>& point_centers, table& table, vector< vector<double> >& centers)
+{
+  const size_t center_count = centers.size();
+
+  point_centers.resize(table.row_count);
+
+  for (size_t row = 0; row < table.row_count; ++row)
+  {
+    // classify according to the distance to centroids
+
+    size_t min_i = (size_t)-1;
+    double min_dist;
+
+    for (size_t i = 0; i < center_count; ++i)
+    {
+      double dist = 0.f;
+      for (size_t col = 3; col < table.col_count; ++col)
+	dist += fabs(centers[i][col - 3] - table.rows[row][col]);
+
+      if ((min_i == (size_t)-1) ||  (dist < min_dist))
+      {
+	min_i = i;
+	min_dist = dist;
+      }
+    }
+
+    point_centers[row] = min_i;
+  }
+}
+
+static void get_cluster_stats
+(size_t counts[2], table& table, vector<size_t>& point_centers, size_t k)
+{
+  // counts the zero and ones counts
+  // k the cluster
+
+  counts[0] = 0;
+  counts[1] = 0;
+
+  vector<size_t>::iterator pos = point_centers.begin();
+  for (size_t row = 0; row != point_centers.size(); ++row, ++pos)
+    if (*pos == k) ++counts[(size_t)table.rows[row][2]];
+}
 
 int kmeans(table&, vector< vector<double> >&);
 
@@ -933,15 +1040,29 @@ static void cluster(int ac, char** av)
   table input_table;
   table_read_csv_file(input_table, input_path);
 
-  vector< vector<double> > centers(2);
+  // N the cluster count
+  vector< vector<double> > centers(3);
   kmeans(input_table, centers);
+
+  vector<size_t> point_centers;
+  get_point_centers(point_centers, input_table, centers);
+
+  // total zero and one counts in table
+  size_t total_counts[2] = { 0, 0 };
+  for (size_t row = 0; row < input_table.row_count; ++row)
+    ++total_counts[(size_t)input_table.rows[row][2]];
 
   // print centers
   for (size_t i = 0; i < centers.size(); ++i)
   {
     for (size_t j = 0; j < centers[i].size(); ++j)
       printf("%lf,", centers[i][j]);
-    printf("\n");
+
+    size_t center_counts[2];
+    get_cluster_stats(center_counts, input_table, point_centers, i);
+    printf(" [ %lf / %lf ]\n",
+	   (double)center_counts[0] / (double)total_counts[0],
+	   (double)center_counts[1] / (double)total_counts[1]);
   }
 
 } // cluster

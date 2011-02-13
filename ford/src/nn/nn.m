@@ -54,21 +54,26 @@ function [nn, mean, std] = nn_train(data)
 
   # hidden and output layers neurons count
   # nn_counts = [10, 1];
-  nn_counts = [5, 1];
+  nn_counts = [2, 1];
+  # nn_counts = [1, 1];
   # layers transfer function
   nn_funcs = {"tansig", "purelin"};
 
   # instanciate the network
   net = newff(min_max(in_foo), nn_counts, nn_funcs, "trainlm", "mse");
+  # net = newff(min_max(in_foo), nn_counts, nn_funcs, "trainrp", "mse");
+  net.trainParam.epochs = 50;
+  net.trainParam.mem_reduc = 2;
+  net.trainParam.show = 10;
+
+  # disable plotting
+  # net.trainParam.show = NaN;
 
   # layer weights
   net.IW{1,1}(:) = 1.5;
   net.LW{2,1}(:) = 0.5;
   net.b{1,1}(:) = 1.5;
   net.b{2,1}(:) = 0.5;
-
-  # disable plotting
-  net.trainParam.show = NaN;
 
   # define validation data new, for matlab compatibility
   VV.P = ti;
@@ -314,7 +319,7 @@ endfunction
 function [nn, mean, std] = nn_do_train(data, cols)
   # generate a random set of N tids
 
-  train_tids = gen_tids(100);
+  train_tids = gen_tids(200);
   # train_tids = [1:300];
   # train_tids = [1:100];
   # train_set = nn_get_training_set_deriv_only(data, cols, train_tids);

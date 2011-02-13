@@ -18,5 +18,5 @@
 # ./a.out train ../../data/fordTrain_train_averaged_quantized.csv /tmp/nn.fann
 
 ./a.out train \
-../../data/fordTrain_train_averaged_quantized_sliced.csv \
+../../data/fordTrain_train_200_tids.csv \
 /tmp/nn.fann

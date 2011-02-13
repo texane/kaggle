@@ -6,4 +6,7 @@
 # ./a.out quantize ../../data/fordTrainSlicedColsAveraged.csv ../../data/fordTrainSlicedColsAveragedQuantized.csv
 # ./a.out quantize ../../data/fordTestSlicedColsAveraged.csv ../../data/fordTestSlicedColsAveragedQuantized.csv
 # ./a.out quantize ../../data/fordTrain_train_averaged.csv ../../data/fordTrain_train_averaged_quantized.csv
-./a.out quantize ../../data/fordTrain_test_averaged.csv ../../data/fordTrain_test_averaged_quantized.csv
+
+./a.out quantize \
+../../data/fordTest_averaged.csv \
+../../data/fordTest_averaged_quantized.csv

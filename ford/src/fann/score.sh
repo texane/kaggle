@@ -2,7 +2,11 @@
 
 ./a.out score \
 /tmp/nn.fann \
-../../data/fordTrain_test_averaged_quantized_sliced.csv
+../../data/fordTrain_train_310_tids.csv
+
+# ./a.out score \
+# /tmp/nn.fann \
+# ../../data/fordTrain_test_averaged_quantized_sliced.csv
 
 # ./a.out score /tmp/nn.fann ../../data/fordTrain_test_averaged.csv
 # ./a.out score /tmp/nn.fann ../../data/fordTrain_test.csv

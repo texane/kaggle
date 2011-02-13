@@ -1,4 +1,27 @@
 . todo
+ . table interface
+  . should have column names
+  . binary format for rapid loading
+  . stored by column (chosen at load time)
+  . table_view
+  . actuellement, un probleme est de ne pas nommer les colonnes
+   . par exemple, on -3 des fois... ne devrait pas etre le cas
+  . l interface devrait permettre de couper les vues, sauvegarder...
+  . optimizer les representations binaires
+
+ . parallelisme
+  . a default du langage, certains code pourrait etre implementes
+  via une library qui masque le travail sur gpu
+   . average, stddev...
+
+ . fonctionalites
+  . preprocessing
+   . subsampling, oversampling
+  . classification
+   . clustering
+  . rarity analysis
+
+. todo
  . impelment a neural network with the root package
  . add non linearity topic
    -> input x N != output x N
@@ -22,8 +45,8 @@
  . entrainement sur les 300 premiers tids
  . soumission, public AUC: 0.758521
  . a peu meilleur que sans
- . nn_do_scores(tids = [300:400]) ~= 0.79
- . nn_do_scores(tids = [300:210]) ~= 0.71228
+ . nn_do_score(tids = [300:400]) ~= 0.79
+ . nn_do_score(tids = [300:210]) ~= 0.71228
 
  . en utilisant seulement les derivees, on obtient un mauvais score global,
  car beaucoup d individus ont un alertness constant a 0. dans ce cas, notre
@@ -111,3 +134,15 @@ tid: 310
  . source 'nn/nn.m'; [nn, mean, std] = nn_train(data); score = nn_score(nn, mean, std, data);
  . source 'nn/nn.m'; [nn, mean, std] = nn_train(data); outs = nn_eval(nn, mean, std, td);
  . source 'nn/nn.m'; nn_submit(td, outs);
+
+ . full script (rev. 407d8329a59105154d2fdad3b393edd62a923de5)
+  . source nn/nn.m
+  . cols = [4:33];
+  . data = nn_csvread('../data/fordTrain.csv');
+  . [nn, mean, std] = nn_do_train(data, cols);
+  . nn_do_submit(data, nn, mean, std, cols);
+  . nn_do_score(data, nn, mean, std, cols, tids = [42])
+
+ . reference
+  . http://www.physnet.uni-hamburg.de/physnet/matlab/help/toolbox/nnet/newff.html
+   . explain why I get a out of memory
