@@ -661,17 +661,23 @@ static void slice(int ac, char** av)
 
 static void filter(int ac, char** av)
 {
-  // filter rows whose isAlert == 0
+  // delete rows where cols[col] op value
 
   const char* const input_path = av[0];
   const char* const output_path = av[1];
+
+  const size_t col = atoi(av[2]);
+  const char op = av[3][0];
+  const double value = atof(av[4]);
+
+  if (op != '<') { printf("invalid operation\n"); return ; }
 
   table input_table, output_table;
   table_read_csv_file(input_table, input_path);
   
   vector<size_t> rows;
   for (size_t i = 0; i < input_table.row_count; ++i)
-    if (input_table.rows[i][2] == 0)
+    if (input_table.rows[i][col] < value)
       rows.push_back(i);
 
   table_extract_rows(output_table, input_table, rows);

@@ -54,7 +54,7 @@ function [nn, mean, std] = nn_train(data)
 
   # hidden and output layers neurons count
   # nn_counts = [10, 1];
-  nn_counts = [2, 1];
+  nn_counts = [1, 1];
   # nn_counts = [1, 1];
   # layers transfer function
   nn_funcs = {"tansig", "purelin"};
@@ -62,8 +62,8 @@ function [nn, mean, std] = nn_train(data)
   # instanciate the network
   net = newff(min_max(in_foo), nn_counts, nn_funcs, "trainlm", "mse");
   # net = newff(min_max(in_foo), nn_counts, nn_funcs, "trainrp", "mse");
-  net.trainParam.epochs = 50;
-  net.trainParam.mem_reduc = 2;
+  net.trainParam.epochs = 200;
+  net.trainParam.mem_reduc = 10;
   net.trainParam.show = 10;
 
   # disable plotting
@@ -229,33 +229,22 @@ function nn_choose_net(data)
 endfunction
 
 
-function tids = gen_tids(tid_count)
-  # max number of tids
-  tid_max = 510;
+function tids = gen_tids(data, wanted_count)
+  tids = unique(data(:,1))';
 
-  # clear the tids
-  tids = [];
+  # shuffle
+  tid_count = length(tids);
+  for i = 1:tid_count
+    pos = floor(rand() * (tid_count - 1)) + 1;
+    tmp = tids(i);
+    tids(i) = tids(pos);
+    tids(pos) = tmp ;
+  end
 
-  # generate tid_count distinct tids 
-  while tid_count
-    tid = floor(rand() * tid_max);
+  if wanted_count < tid_count
+    tids = resize(tids, 1, wanted_count);
+  end
 
-    # add if not already present
-    is_found = 0;
-
-    for j = tids
-      if j == tid
-	is_found = 1;
-	break ;
-      end
-    end
-
-    if is_found == 0
-      tid_count = tid_count - 1;
-      tids = [tids tid];
-    end
-
-  end # tid_count
 endfunction
 
 
@@ -285,8 +274,11 @@ endfunction
 
 
 function nn_do_submit(data, nn, mean, std, cols)
-  submission_data = nn_csvread('../../data/fordTest.csv');
-  [submission_set, res_set] = nn_get_submission_set_deriv(submission_data, cols);
+  # submission_data = nn_csvread('../../data/fordTest.csv');
+  # submission_data = nn_csvread('../../data/fordTest_averaged_quantized_sliced.csv');
+  submission_data = nn_csvread('../../data/fordTest_sliced.csv');
+  # [submission_set, res_set] = nn_get_submission_set_deriv(submission_data, cols);
+  [submission_set, res_set] = nn_get_submission_set(submission_data, cols);
   submission_res = nn_eval(nn, mean, std, submission_set);
   nn_submit(submission_data, submission_res);
 endfunction
@@ -297,8 +289,8 @@ function scores = nn_do_score(data, nn, mean, std, cols, tids)
   i = 1;
   for tid = tids
     #[test_set, res_set] = nn_get_testing_set_deriv_only(data, cols, tid);
-    [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
-    #[test_set, res_set] = nn_get_testing_set(data, cols, tid);
+    #[test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
+    [test_set, res_set] = nn_get_testing_set(data, cols, tid);
     scores(i) = nn_score(nn, mean, std, test_set, res_set);
     i = i + 1;
   end
@@ -321,7 +313,8 @@ function auc = nn_do_auc(data, nn, mean, std, cols, tids)
   actual = [];
 
   for tid = tids
-    [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
+    # [test_set, res_set] = nn_get_testing_set_deriv(data, cols, tid);
+    [test_set, res_set] = nn_get_testing_set(data, cols, tid);
     actual = [ actual res_set' ];
     out = nn_eval(nn, mean, std, test_set);
     predicted = [ predicted out' ];
@@ -333,12 +326,12 @@ endfunction
 function [nn, mean, std] = nn_do_train(data, cols)
   # generate a random set of N tids
 
-  train_tids = gen_tids(200);
+  train_tids = gen_tids(data, 390);
   # train_tids = [1:300];
   # train_tids = [1:100];
   # train_set = nn_get_training_set_deriv_only(data, cols, train_tids);
-  train_set = nn_get_training_set_deriv(data, cols, train_tids);
-  # train_set = nn_get_training_set(data, cols, train_tids);
+  # train_set = nn_get_training_set_deriv(data, cols, train_tids);
+  train_set = nn_get_training_set(data, cols, train_tids);
   [nn, mean, std] = nn_train(train_set);
   return ;
 
@@ -353,7 +346,7 @@ function [nn, mean, std] = nn_do_train(data, cols)
     [nn, mean, std] = nn_train(train_set);
 
     # generate test tids
-    test_tids = gen_tids(20);
+    test_tids = gen_tids(data, 20);
 
     # get the scores
     scores = nn_do_score(data, nn, mean, std, cols, test_tids);
@@ -433,6 +426,16 @@ function train_set = nn_get_training_set_deriv_only(data, cols, tids)
 endfunction
 
 
+function [test_set, res_set] = nn_get_submission_set(data, cols)
+  # get the list of unique tids
+  tids = unique(data(:,1));
+  tids = tids';
+  test_set = nn_get_training_set(data, cols, tids);
+  res_set = test_set(:,1);
+  test_set(:,1) = [];
+endfunction
+
+
 function [test_set, res_set] = nn_get_submission_set_deriv(data, cols)
   # get the list of unique tids
   tids = unique(data(:,1));
@@ -497,4 +500,26 @@ function nn_stats(data)
   zero_stats = nn_stats_value(data, 0);
   one_stats = nn_stats_value(data, 1);
   nn_print_stats(zero_stats, one_stats);
+endfunction
+
+function nn_do_static(data)
+  # static model
+  rows = [];
+  rows = [ rows find(data(:,4) >= 0.18)' ];
+  rows = [ rows find(data(:,11) == 100)' ];
+  rows = [ rows find(data(:,12) == 0)' ];
+  rows = [ rows find(data(:,14) == 0)' ];
+  length(rows)
+  rows = unique(rows);
+  length(rows)
+  length(rows) / length(data)
+endfunction
+
+function nn_do_pca(data)
+  X = bsxfun(@minus, X, mean(X,1));           %# zero-center
+  C = (X'*X)./(size(X,1)-1);                  %'# cov(X)
+  [V D] = eig(C);
+  [D order] = sort(diag(D), 'descend');       %# sort cols high to low
+  V = V(:,order);
+  newX = X*V(:,1:end);
 endfunction

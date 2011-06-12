@@ -7,7 +7,12 @@
 # ./a.out average ../../data/fordTestSlicedCols.csv ../../data/fordTestSlicedColsAveraged.csv 10
 # ./a.out average ../../data/fordTrain_train.csv ../../data/fordTrain_train_averaged.csv 10
 
+# ./a.out average \
+# ../../data/fordTest.csv \
+# ../../data/fordTest_averaged.csv \
+# 10
+
 ./a.out average \
-../../data/fordTest.csv \
-../../data/fordTest_averaged.csv \
+../../data/fordTrain.csv \
+../../data/fordTrain_averaged.csv \
 10

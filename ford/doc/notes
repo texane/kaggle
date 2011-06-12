@@ -1,4 +1,10 @@
 . todo
+ . improve matlab code
+  . averaged, quantized + sliced in matlab
+  . understand + implement levenberg method
+  . saved the set of tids used to train + tests
+  . test against fann
+
  . table interface
   . should have column names
   . binary format for rapid loading
@@ -153,6 +159,17 @@ tid: 310
    . si ca marche bien, il faudrait augmenter le nmobre de neurones
    . sinon, essayer sur de nouveau tids
    
-
 . doc on auc
  . http://matlabdatamining.blogspot.com/2007/06/roc-curves-and-auc.html
+ . roc curves on wikipedia
+ . the idea behind roc curves
+  . if we have a binary classifier relying upon a threshold to map the input
+   . for instance, if C(i) > 0.5 prediction = 1 else prediction = 0;
+  . if we want to know the effect of varying the threshold
+   . if (C(i) > T[i]) ...
+  . then we can plot flase positives versus true positive
+  . ROC space
+   . true positive rate and false positive rates are needed
+
+. machine learning references
+ . http://crsouza.blogspot.com/

@@ -8,5 +8,5 @@
 # ./a.out quantize ../../data/fordTrain_train_averaged.csv ../../data/fordTrain_train_averaged_quantized.csv
 
 ./a.out quantize \
-../../data/fordTest_averaged.csv \
-../../data/fordTest_averaged_quantized.csv
+../../data/fordTrain_averaged.csv \
+../../data/fordTrain_averaged_quantized.csv
