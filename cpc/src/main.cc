@@ -21,6 +21,7 @@ int main(int ac, char** av)
   col_types.push_back(table::REAL);
   col_types.push_back(table::REAL);
   col_types.push_back(table::STRING);
+  col_types.push_back(table::REAL);
 
 #else
 
@@ -71,7 +72,7 @@ int main(int ac, char** av)
   if (table_read_csv_file(table, av[1], true))
   {
     printf("[!] read\n");
-    return -1;
+    // return -1;
   }
 
   // table_print(table);

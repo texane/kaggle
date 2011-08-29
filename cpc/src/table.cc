@@ -360,9 +360,9 @@ int table_read_csv_file
 
     ++table.row_count;
 
-    if ((table.row_count % 1000) == 0)
+    if ((table.row_count % 100000) == 0)
     {
-      printf("%u\r", table.row_count);
+      printf("%u\n", table.row_count);
       fflush(stdout);
     }
   }
