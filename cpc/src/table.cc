@@ -1,3 +1,8 @@
+// todo
+// column may be type. parse as string then normalize 
+// take into account invalid value
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,7 +12,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include "table.hh"
-
 
 
 int table_create(table& table)
@@ -24,6 +28,26 @@ void table_destroy(table& table)
   table.col_count = 0;
 }
 
+void table_set_column_types
+(table& table, const std::vector<table::col_types>& types)
+{
+  table.col_type = types;
+}
+
+void table_set_column_names
+(table& table, const std::vector<std::string>& names)
+{
+  table.col_names = names;
+}
+
+int table_map_value
+(table& table, unsigned int  col, const table::row_type& key, std::string& val)
+{
+  std::map<>::iterator pos = table.col_maps[col].find(value);
+  if (pos == table.col_maps[col].end()) return -1;
+  val = pos->second;
+  return 0;
+}
 
 // read a csv file
 
