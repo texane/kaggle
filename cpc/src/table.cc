@@ -408,6 +408,14 @@ int table_write_csv_file(const table& table, const char* path)
   return 0;
 }
 
+int table_read_bin_file(double*& table, const char* path)
+{
+  mapped_file_t mf;
+  if (map_file(&mf, path) == -1) return -1;
+  table = (double*)mf.base;
+  return 0;
+}
+
 int table_write_bin_file(const table& table, const char* path)
 {
   const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
