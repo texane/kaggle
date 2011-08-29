@@ -408,11 +408,13 @@ int table_write_csv_file(const table& table, const char* path)
   return 0;
 }
 
-int table_read_bin_file(double*& table, const char* path)
+int table_read_bin_file
+(double*& table, const char* path, unsigned int ncols, unsigned int& nrows)
 {
   mapped_file_t mf;
   if (map_file(&mf, path) == -1) return -1;
   table = (double*)mf.base;
+  nrows = mf.len / (ncols * sizeof(double));
   return 0;
 }
 
