@@ -10,7 +10,6 @@
 
 
 #define CONFIG_ALLOCATE_ROWS 1
-#define CONFIG_ENABLE_MAPPING 0
 
 
 int table_create(table& table)
@@ -42,7 +41,6 @@ void table_set_column_names
 int table_map_value
 (table& table, unsigned int col, const table::data_type& key, std::string& val)
 {
-#if CONFIG_ENABLE_MAPPING
   std::map<double, std::string>::const_iterator pos =
     table.col_maps[col].find(key);
   std::map<double, std::string>::const_iterator end =
@@ -50,9 +48,6 @@ int table_map_value
   if (pos == end) return -1;
   val = pos->second;
   return 0;
-#else
-  return -1;
-#endif
 }
 
 // read a csv file
@@ -240,8 +235,6 @@ static int next_string
     table.col_maps[col].insert(kv);
   }
 
-  value = 0;
-
   return 0;
 }
 
@@ -386,12 +379,21 @@ int table_write_csv_file(const table& table, const char* path)
 {
   char buf[1024];
 
-  // prepend TrialID,ObsNum,Prediction
   const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd == -1) return -1;
 
-  static const char* header_string = "TrialID,ObsNum,Prediction\n";
-  write(fd, header_string, strlen(header_string));
+  // column names
+  if (table.col_names.size())
+  {
+    for (unsigned int i = 0; i < table.col_names.size(); ++i)
+    {
+      const char* const s = table.col_names[i].data();
+      const unsigned int len = table.col_names[i].size();
+      if (i) write(fd, ",", 1);
+      write(fd, s, len);
+    }
+    write(fd, "\n", 1);
+  }
 
   for (size_t i = 0; i < table.row_count; ++i)
   {
@@ -401,6 +403,19 @@ int table_write_csv_file(const table& table, const char* path)
     buf[len - 1] = '\n';
     write(fd, buf, len);
   }
+
+  close(fd);
+  return 0;
+}
+
+int table_write_bin_file(const table& table, const char* path)
+{
+  const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (fd == -1) return -1;
+
+  for (size_t i = 0; i < table.row_count; ++i)
+    for (size_t j = 0; j < table.col_count; ++j)
+      write(fd, (const void*)&table.rows[i][j], sizeof(double));
 
   close(fd);
   return 0;

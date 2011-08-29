@@ -75,6 +75,8 @@ int main(int ac, char** av)
   }
 
   // table_print(table);
+  table_write_csv_file(table, "../data/train_set_reals.csv");
+  table_write_bin_file(table, "../data/train_set_reals.bin");
 
   table_destroy(table);
 
