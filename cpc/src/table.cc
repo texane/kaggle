@@ -1,8 +1,3 @@
-// todo
-// column may be type. parse as string then normalize 
-// take into account invalid value
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,6 +7,10 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include "table.hh"
+
+
+#define CONFIG_ALLOCATE_ROWS 1
+#define CONFIG_ENABLE_MAPPING 0
 
 
 int table_create(table& table)
@@ -29,9 +28,9 @@ void table_destroy(table& table)
 }
 
 void table_set_column_types
-(table& table, const std::vector<table::col_types>& types)
+(table& table, const std::vector<table::col_type>& types)
 {
-  table.col_type = types;
+  table.col_types = types;
 }
 
 void table_set_column_names
@@ -41,12 +40,19 @@ void table_set_column_names
 }
 
 int table_map_value
-(table& table, unsigned int  col, const table::row_type& key, std::string& val)
+(table& table, unsigned int col, const table::data_type& key, std::string& val)
 {
-  std::map<>::iterator pos = table.col_maps[col].find(value);
-  if (pos == table.col_maps[col].end()) return -1;
+#if CONFIG_ENABLE_MAPPING
+  std::map<double, std::string>::const_iterator pos =
+    table.col_maps[col].find(key);
+  std::map<double, std::string>::const_iterator end =
+    table.col_maps[col].end();
+  if (pos == end) return -1;
   val = pos->second;
   return 0;
+#else
+  return -1;
+#endif
 }
 
 // read a csv file
@@ -63,14 +69,12 @@ typedef mapped_file_t mapped_line_t;
 static int map_file(mapped_file_t* mf, const char* path)
 {
   int error = -1;
-  struct stat st;
+  struct stat64 st;
 
-  const int fd = open(path, O_RDONLY);
-  if (fd == -1)
-    return -1;
+  const int fd = open(path, O_RDONLY | O_LARGEFILE);
+  if (fd == -1) return -1;
 
-  if (fstat(fd, &st) == -1)
-    goto on_error;
+  if (fstat64(fd, &st) == -1) goto on_error;
 
   mf->base = (unsigned char*)
     mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
@@ -181,56 +185,172 @@ static void skip_first_line(mapped_file_t* mf)
   }
 }
 
-static inline int next_value
-(mapped_file_t& mf, table::data_type& value)
+static inline bool is_eof(char c)
+{
+  // is end of field
+  return c == ',' || c == '\n';
+}
+
+static int next_real
+(table& table, mapped_file_t& mf, unsigned int col, table::data_type& value)
 {
   char* endptr;
-
-  if (mf.off >= mf.len) return -1;
-
-  value = 0;
-  if (mf.base[mf.off] == '?')
-    endptr = (char*)mf.base + mf.off + 1;
-  else
-    value = strtod((char*)mf.base + mf.off, &endptr);
-
+  value = strtod((char*)mf.base + mf.off, &endptr);
+  if (table.invalid_value == value) return -1;
   // endptr points to the next caracter
   mf.off = endptr - (char*)mf.base + 1;
+  return 0;
+}
+
+static int next_string
+(table& table, mapped_file_t& mf, unsigned int col, table::data_type& value)
+{
+  // get the string mf.base[mf.off:j]
+  unsigned int j = mf.off;
+  for (; (j < mf.len) && !is_eof(mf.base[j]); ++j) ;
+  const char* const s = (const char*)mf.base + mf.off;
+  const unsigned int len = j - mf.off;
+  mf.off = j + (j == mf.len ? 0 : 1);
+
+  // find in column value set
+  std::map<double, std::string>::const_iterator pos =
+    table.col_maps[col].begin();
+  std::map<double, std::string>::const_iterator end =
+    table.col_maps[col].end();
+
+  double max_val = 0;
+  for (; pos != end; ++pos)
+  {
+    if (max_val <= pos->first) max_val = pos->first + 1;
+    if (pos->second.size() != len) continue ;
+
+    if (memcmp(pos->second.data(), s, len) == 0)
+    {
+      value = pos->first;
+      break ;
+    }
+  }
+
+  // not found, add to the column value map
+  if (pos == end)
+  {
+    value = max_val;
+    const std::pair<double, std::string> kv
+      (max_val, std::string(s, len));
+    table.col_maps[col].insert(kv);
+  }
+
+  value = 0;
 
   return 0;
 }
 
-int table_read_csv_file(table& table, const char* path)
+static int next_value
+(table& table, mapped_file_t& mf, unsigned int col, table::data_type& value)
+{
+  // col the current column
+
+  if (mf.off >= mf.len) return -1;
+
+  // special invalid value
+  if (mf.base[mf.off] == '?')
+  {
+    value = table::invalid_value;
+    ++mf.off;
+    if (mf.off != mf.len) ++mf.off;
+    return 0;
+  }
+  else if (table.col_types[col] == table::REAL)
+  {
+    return next_real(table, mf, col, value);
+  }
+  else
+  {
+    return next_string(table, mf, col, value);
+  }
+
+  return 0;
+}
+
+int table_read_csv_file
+(table& table, const char* path, bool has_col_names)
 {
   // table_create not assumed
 
   int error = -1;
 
-  if (table_create(table) == -1) return -1;
+  unsigned char buf[256];
 
   mapped_file_t mf;
   if (map_file(&mf, path) == -1) return -1;
 
-  // skip first line if needed (before counting cols)
-  skip_first_line(&mf);
-
-  // get the column count
   table.col_count = get_col_count(&mf);
 
-  vector<table::data_type> row;
+  if (has_col_names)
+  {
+    if (table.col_names.size() == 0)
+    {
+      // get col names from first line
+      mapped_line_t ml;
+      if (next_line(&mf, &ml) == -1) return -1;
+
+      table.col_names.resize(table.col_count);
+      for (unsigned int i = 0; i < table.col_count; ++i)
+      {
+	if (next_col(&ml, buf) == -1) return -1;
+	table.col_names[i] = std::string((const char*)buf);
+      }
+    }
+    else skip_first_line(&mf);
+  }
+  else
+  {
+    // generate fake names
+    if (table.col_names.size() == 0)
+    {
+      table.col_names.resize(table.col_count);
+      for (unsigned int i = 0; i < table.col_count; ++i)
+      {
+	sprintf((char*)buf, "col_%d", i);
+	table.col_names[i] = std::string((const char*)buf);
+      }
+    }
+  }
+
+  // if needed assume col types as all real
+  if (table.col_types.size() == 0)
+  {
+    table.col_types.resize(table.col_count);
+    for (unsigned int i = 0; i < table.col_count; ++i)
+      table.col_types[i] = table::REAL;
+  }
+
+  table.col_maps.resize(table.col_count);
+
+#if CONFIG_ALLOCATE_ROWS
+  table.rows.resize(20000000);
+#else
+  // current row
+  std::vector<table::data_type> row;
   row.resize(table.col_count);
+#endif
 
   table::data_type value;
   while (1)
   {
     // no more value
-    if (next_value(mf, value) == -1) break ;
+    if (next_value(table, mf, 0, value) == -1) break ;
+
+#if CONFIG_ALLOCATE_ROWS
+    table::row_type& row = table.rows[table.row_count];
+    row.resize(table.col_count);
+#endif
 
     size_t col_pos = 0;
     goto add_first_value;
     for (; col_pos < table.col_count; ++col_pos)
     {
-      if (next_value(mf, value) == -1) break ;
+      if (next_value(table, mf, col_pos, value) == -1) break ;
     add_first_value:
       row[col_pos] = value;
     }
@@ -241,8 +361,17 @@ int table_read_csv_file(table& table, const char* path)
       goto on_error;
     }
 
+#if (CONFIG_ALLOCATE_ROWS == 0)
     table.rows.push_back(row);
+#endif
+
     ++table.row_count;
+
+    if ((table.row_count % 1000) == 0)
+    {
+      printf("%u\r", table.row_count);
+      fflush(stdout);
+    }
   }
 
   // success
@@ -278,7 +407,7 @@ int table_write_csv_file(const table& table, const char* path)
 }
 
 void table_extract_cols
-(table& new_table, const table& table, const vector<unsigned int>& cols)
+(table& new_table, const table& table, const std::vector<unsigned int>& cols)
 {
   new_table.row_count = table.rows.size();
   new_table.col_count = cols.size();
@@ -292,7 +421,7 @@ void table_extract_cols
   }
 }
 
-void table_delete_cols(table& table, const vector<unsigned int>& cols)
+void table_delete_cols(table& table, const std::vector<unsigned int>& cols)
 {
   // assume cols sorted in ascending order
 
@@ -309,7 +438,7 @@ void table_delete_cols(table& table, const vector<unsigned int>& cols)
   table.col_count -= cols.size();
 }
 
-void table_delete_rows(table& table, const vector<unsigned int>& rows)
+void table_delete_rows(table& table, const std::vector<unsigned int>& rows)
 {
   // assume rows sorted in ascending order
 
@@ -322,7 +451,7 @@ void table_delete_rows(table& table, const vector<unsigned int>& rows)
 }
 
 void table_extract_rows
-(table& new_table, const table& table, const vector<unsigned int>& rows)
+(table& new_table, const table& table, const std::vector<unsigned int>& rows)
 {
   new_table.row_count = rows.size();
   new_table.col_count = table.col_count;
@@ -368,7 +497,7 @@ void table_split_at_row
   new_table.col_count = table.col_count;
 
   // copy rows from table to new_table
-  vector<table::row_type>::iterator pos = table.rows.begin() + pivot;
+  std::vector<table::row_type>::iterator pos = table.rows.begin() + pivot;
   for (size_t i = 0; i < new_table.row_count; ++i, ++pos)
     new_table.rows[i] = *pos;
 
@@ -377,19 +506,15 @@ void table_split_at_row
   table.row_count = pivot;
 }
 
-
-#if 0 // helper routines
-
-static void append_derivatives(table& table)
-{
-  // append the derivative to end of rows
-}
-
-#endif
-
-
 void table_print(const table& table)
 {
+  if (table.col_names.size())
+  {
+    for (unsigned int i = 0; i < table.col_names.size(); ++i)
+      printf("%s,", table.col_names[i].c_str());
+    printf("\n");
+  }
+
   for (size_t i = 0; i < table.row_count; ++i)
   {
     for (size_t j = 0; j < table.col_count; ++j)

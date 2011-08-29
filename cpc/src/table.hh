@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include <map>
 #include <sys/types.h>
 
 
@@ -21,7 +22,7 @@ typedef struct table
   // types
   typedef double data_type;
   typedef std::vector<data_type> row_type;
-  static const row_type invalid_value = 24242424242;
+  static const data_type invalid_value = 24242424242;
 
   // data rows
   std::vector<row_type> rows;
@@ -34,17 +35,17 @@ typedef struct table
   std::vector<col_type> col_types;
 
   // column map
-  std::vector< std::map<row_type, std::string> > col_maps;
+  std::vector< std::map<data_type, std::string> > col_maps;
 
 } table;
 
 
 int table_create(table&);
 void table_destroy(table&);
-void table_set_column_types(table&, const std::vector<table::col_types>&);
+void table_set_column_types(table&, const std::vector<table::col_type>&);
 void table_set_column_names(table&, const std::vector<std::string>&);
-int table_map_value(table&, unsigned int, const table::row_type&, std::string& );
-int table_read_csv_file(table&, const char*);
+int table_map_value(table&, unsigned int, const table::data_type&, std::string& );
+int table_read_csv_file(table&, const char*, bool = false);
 int table_write_csv_file(const table&, const char*);
 void table_extract_cols(table&, const table&, const std::vector<unsigned int>&);
 void table_extract_rows(table&, const table&, const std::vector<unsigned int>&);
