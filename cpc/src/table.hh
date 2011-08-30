@@ -47,6 +47,8 @@ void table_set_column_names(table&, const std::vector<std::string>&);
 int table_map_value(table&, unsigned int, const table::data_type&, std::string& );
 int table_read_csv_file(table&, const char*, bool = false);
 int table_write_csv_file(const table&, const char*);
+int table_write_csv_file
+(const table&, const char*, const std::vector<unsigned int>&, const std::vector<unsigned int>&);
 int table_read_bin_file(double*&, const char*, unsigned int, unsigned int&);
 int table_write_bin_file(const table&, const char*);
 void table_extract_cols(table&, const table&, const std::vector<unsigned int>&);
@@ -76,6 +78,31 @@ void table_find_rows
   for (size_t i = 0; i < table.row_count; ++i)
   {
     if (func(table.rows[i][col]))
+    {
+      // found
+      rows[row_count++] = i;
+    }
+  }
+
+  rows.resize(row_count);
+}
+
+
+template<typename functor_type>
+void table_find_rows
+(
+ std::vector<unsigned int>& rows,
+ const table& table,
+ functor_type func
+)
+{
+  size_t row_count = 0;
+
+  rows.resize(table.row_count);
+
+  for (size_t i = 0; i < table.row_count; ++i)
+  {
+    if (func(table.rows[i]))
     {
       // found
       rows[row_count++] = i;

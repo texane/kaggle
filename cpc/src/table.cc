@@ -9,7 +9,7 @@
 #include "table.hh"
 
 
-#define CONFIG_ALLOCATE_ROWS 1
+#define CONFIG_ALLOCATE_ROWS 0
 
 
 int table_create(table& table)
@@ -191,7 +191,7 @@ static int next_real
 {
   char* endptr;
   value = strtod((char*)mf.base + mf.off, &endptr);
-  if (table.invalid_value == value) return -1;
+  // if (table.invalid_value == value) return -1;
   // endptr points to the next caracter
   mf.off = endptr - (char*)mf.base + 1;
   return 0;
@@ -408,6 +408,45 @@ int table_write_csv_file(const table& table, const char* path)
   return 0;
 }
 
+int table_write_csv_file
+(
+ const table& table,
+ const char* path,
+ const std::vector<unsigned int>& rows,
+ const std::vector<unsigned int>& cols
+)
+{
+  char buf[1024];
+
+  const int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (fd == -1) return -1;
+
+  // column names
+  if (table.col_names.size())
+  {
+    for (unsigned int i = 0; i < cols.size(); ++i)
+    {
+      const char* const s = table.col_names[cols[i]].data();
+      const unsigned int len = table.col_names[cols[i]].size();
+      if (i) write(fd, ",", 1);
+      write(fd, s, len);
+    }
+    write(fd, "\n", 1);
+  }
+
+  for (size_t i = 0; i < rows.size(); ++i)
+  {
+    size_t len = 0;
+    for (size_t j = 0; j < cols.size(); ++j)
+      len += sprintf(buf + len, "%lf,", table.rows[rows[i]][cols[j]]);
+    buf[len - 1] = '\n';
+    write(fd, buf, len);
+  }
+
+  close(fd);
+  return 0;
+}
+
 int table_read_bin_file
 (double*& table, const char* path, unsigned int ncols, unsigned int& nrows)
 {
@@ -468,10 +507,7 @@ void table_delete_rows(table& table, const std::vector<unsigned int>& rows)
   // assume rows sorted in ascending order
 
   for (size_t i = 0; i < rows.size(); ++i)
-  {
-    printf("%u\n", i);
     table.rows.erase(table.rows.begin() + (rows[i] - i));
-  }
   table.row_count -= rows.size();
 }
 
