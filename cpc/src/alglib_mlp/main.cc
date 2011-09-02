@@ -158,7 +158,7 @@ static void train(int ac, char** av)
   const col_set cols = filter_cols(table);
 //   const col_set cols = get_col_from_baz(table);
 
-#define OUTPUT_RATIO 10
+#define OUTPUT_RATIO 1
 
   const unsigned int output_index = table.col_count - 1;
 
@@ -330,10 +330,46 @@ static void eval(int ac, char** av)
 }
 
 
+static void hist(int ac, char** av)
+{
+  table table;
+  table_create(table);
+  table_read_csv_file(table, av[0], true);
+
+  const unsigned int output_index = table.col_count - 1;
+
+  // filter rows
+  std::vector<unsigned int> rows;
+  for (unsigned int i = 0; i < table.row_count; ++i)
+    if (table.rows[i][output_index] > 2000)
+      rows.push_back(i);
+  table_delete_rows(table, rows);
+
+  // transform the claim amount
+  for (unsigned int i = 0; i < table.row_count; ++i)
+    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+
+  unsigned int train_row_count = 1000;
+  if (train_row_count > table.row_count)
+    train_row_count = table.row_count;
+
+  const unsigned int _max = max(table, output_index);
+
+  std::vector<unsigned int> hist(_max + 1, 0);
+
+  for (unsigned int i = 0; i < train_row_count; ++i)
+    ++hist[(unsigned int)table.rows[i][output_index]];
+
+  for (unsigned int i = 0; i < hist.size(); ++i)
+    if (hist[i]) printf("%u: %u\n", i, hist[i]);
+}
+
+
 int main(int ac, char** av)
 {
   const std::string what = av[1];
   if (what == "train") train(ac - 2, av + 2);
   else if (what == "eval") eval(ac - 2, av + 2);
+  else if (what == "hist") hist(ac - 2, av + 2);
   return 0;
 }
