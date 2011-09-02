@@ -23,6 +23,7 @@ typedef struct table
   typedef double data_type;
   typedef std::vector<data_type> row_type;
   static const data_type invalid_value = 24242424242;
+  static const data_type min_inf = -24242424242;
 
   // data rows
   std::vector<row_type> rows;
