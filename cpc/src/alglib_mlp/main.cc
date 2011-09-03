@@ -145,6 +145,50 @@ static col_set get_col_from_baz(table& _table)
   return cols;
 }
 
+__attribute__((unused))
+static col_set filter_continuous_cols(table& table)
+{
+  // keep only categorical columns and claimed_amount
+
+  static const char* names[] =
+  {
+    "Var1",
+    "Var2",
+    "Var3",
+    "Var4",
+    "Var5",
+    "Var6",
+    "Var7",
+    "Var8",
+    "Claim_Amount",
+  };
+
+  static const unsigned int count = sizeof(names) / sizeof(names[0]);
+
+  std::vector<unsigned int> cols;
+
+  for (unsigned int i = 0; i < table.col_names.size(); ++i)
+  {
+    bool is_found = false;
+
+    for (unsigned int j = 0; j < count; ++j)
+      if (table.col_names[i] == names[j])
+      {
+	is_found = true;
+	break ;
+      }
+
+    if (is_found == false) cols.push_back(i);
+  }
+
+  table_delete_cols(table, cols);
+
+  col_set cs;
+  cs.resize(table.col_count);
+  for (unsigned int i = 0; i < cs.size(); ++i) cs[i] = i;
+  return cs;
+}
+
 
 static void train(int ac, char** av)
 {
@@ -155,25 +199,24 @@ static void train(int ac, char** av)
   table_read_csv_file(table, av[1], true);
 
   // prune the table
-  const col_set cols = filter_cols(table);
+//   const col_set cols = filter_cols(table);
 //   const col_set cols = get_col_from_baz(table);
+  const col_set cols = filter_continuous_cols(table);
 
 #define OUTPUT_RATIO 1
 
   const unsigned int output_index = table.col_count - 1;
 
-  // filter rows
-  std::vector<unsigned int> rows;
-  for (unsigned int i = 0; i < table.row_count; ++i)
-    if (table.rows[i][output_index] > 2000)
-      rows.push_back(i);
-  table_delete_rows(table, rows);
-
   // transform the claim amount
   for (unsigned int i = 0; i < table.row_count; ++i)
-    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+  {
+    if (table.rows[i][output_index] > 2000)
+      table.rows[i][output_index] = 2001;
 
-  unsigned int train_row_count = 10000;
+    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+  }
+
+  unsigned int train_row_count = 5000;
   if (train_row_count > table.row_count)
     train_row_count = table.row_count;
 
@@ -192,7 +235,7 @@ static void train(int ac, char** av)
 
   // create nn
 
-  const unsigned int nclasses = max(table, output_index);
+  const unsigned int nclasses = max(table, output_index) + 1;
 
   const alglib::ae_int_t nin = ncols(table, cols);
   const alglib::ae_int_t nhid1 = 25;
@@ -260,23 +303,21 @@ static void eval(int ac, char** av)
   table_read_csv_file(table, av[1], true);
 
   // prune the table
-  const col_set cols = filter_cols(table);
+//   const col_set cols = filter_cols(table);
 //   const col_set cols = get_col_from_baz(table);
+  const col_set cols = filter_continuous_cols(table);
 
   const unsigned int output_index = table.col_count - 1;
 
-  // filter rows
-  std::vector<unsigned int> rows;
-  for (unsigned int i = 0; i < table.row_count; ++i)
-    if (table.rows[i][output_index] > 2000)
-      rows.push_back(i);
-  table_delete_rows(table, rows);
-
   // transform the claim amount
   for (unsigned int i = 0; i < table.row_count; ++i)
+  {
+    if (table.rows[i][output_index] > 2000)
+      table.rows[i][output_index] = 2001;
     table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+  }
 
-  unsigned int train_row_count = 1000;
+  unsigned int train_row_count = 5000;
   if (train_row_count > table.row_count)
     train_row_count = table.row_count;
 
@@ -294,7 +335,7 @@ static void eval(int ac, char** av)
 //   for (unsigned int i = train_row_count; i < train_row_count + 100; ++i)
 //   for (unsigned int i = train_row_count; i < table.row_count; ++i)
 //   for (unsigned int i = 0; i < train_row_count + 1000; ++i)
-  for (unsigned int i = 0; i < train_row_count + 100; ++i)
+  for (unsigned int i = 0; i < train_row_count + 1000; ++i)
 //   for (unsigned int i = train_row_count; i < train_row_count + 5000; ++i)
   {
     const unsigned int klass = (unsigned int)table.rows[i][output_index];
@@ -719,6 +760,13 @@ static void eval_ensemble_fu(int ac, char** av)
   table_destroy(table);
 }
 
+static void submit(int ac, char** av)
+{
+  table table;
+  table_create(table);
+  table_read_csv_file(table, "../../data/test_set.csv", true);
+}
+
 
 int main(int ac, char** av)
 {
@@ -726,6 +774,7 @@ int main(int ac, char** av)
   if (what == "train") train(ac - 2, av + 2);
   else if (what == "eval") eval(ac - 2, av + 2);
   else if (what == "hist") hist(ac - 2, av + 2);
+  else if (what == "submit") submit(ac - 2, av + 2);
   else if (what == "train_ensemble") train_ensemble(ac - 2, av + 2);
   else if (what == "eval_ensemble") eval_ensemble(ac - 2, av + 2);
   else if (what == "eval_ensemble_fu") eval_ensemble_fu(ac - 2, av + 2);
