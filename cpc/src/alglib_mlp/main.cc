@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <vector>
@@ -63,16 +64,16 @@ static bool comparison_function(unsigned int a, unsigned int b)
 
 typedef std::vector<unsigned int> col_set;
 
-static inline double at
-(const table& t, const col_set& cs, unsigned int i, unsigned int j)
+static inline double& at
+(table& t, const col_set& cs, unsigned int i, unsigned int j)
 {
   return t.rows[i][cs[j]];
 }
 
-static inline const double* at(const table& t, unsigned int i)
-{
-  return t.rows[i].data();
-}
+// static inline const double* at(const table& t, unsigned int i)
+// {
+//   return t.rows[i].data();
+// }
 
 static inline unsigned int ncols(const table& t, const col_set& cs)
 {
@@ -80,7 +81,7 @@ static inline unsigned int ncols(const table& t, const col_set& cs)
 }
 
 __attribute__((unused))
-static double max(const table& t, const col_set& cs, unsigned int col)
+static double max(table& t, const col_set& cs, unsigned int col)
 {
   double max = table::min_inf;
   for (unsigned int i = 0; i < t.row_count; ++i)
@@ -89,7 +90,7 @@ static double max(const table& t, const col_set& cs, unsigned int col)
   return max;
 }
 
-static double max(const table& t, unsigned int col)
+static double max(table& t, unsigned int col)
 {
   double max = table::min_inf;
   for (unsigned int i = 0; i < t.row_count; ++i)
@@ -152,14 +153,26 @@ static col_set filter_continuous_cols(table& table)
 
   static const char* names[] =
   {
-    "Var1",
-    "Var2",
-    "Var3",
-    "Var4",
-    "Var5",
+    "Blind_Submodel",
+
+    "Cat1",
+    "Cat1",
+    "Cat4",
+    "OrdCat",
+
+    "NVCat",
+    "NVVar1",
+    "NVVar2",
+
+//     "Var1",
+//     "Var2",
+//     "Var3",
+//     "Var4",
+//     "Var5",
     "Var6",
     "Var7",
     "Var8",
+
     "Claim_Amount",
   };
 
@@ -189,6 +202,31 @@ static col_set filter_continuous_cols(table& table)
   return cs;
 }
 
+static col_set get_rand_cols(table& table)
+{
+  // shuffle cols, not including the 7 first and last ones
+  srand(getpid() * time(0));
+  std::vector<unsigned int> cols;
+  cols.resize(table.col_count - 1 - 7);
+  for (unsigned int i = 0; i < cols.size(); ++i)
+    cols[i] = i + 7;
+  for (unsigned int i = 0; i < cols.size(); ++i)
+  {
+    const unsigned int j = rand() % cols.size();
+    std::swap(cols[i], cols[j]);
+  }
+
+  // keep only the first n, with n >= 3
+  // add last col (output always present)
+  const unsigned int n = 3 + rand() % (cols.size() - 3);
+  std::sort(cols.begin(), cols.begin() + n);
+  col_set cs;
+  cs.resize(n + 1);
+  for (unsigned int i = 0; i < n; ++i) cs[i] = cols[i];
+  cs[n] = table.col_count - 1;
+  return cs;
+}
+
 
 static void train(int ac, char** av)
 {
@@ -201,22 +239,25 @@ static void train(int ac, char** av)
   // prune the table
 //   const col_set cols = filter_cols(table);
 //   const col_set cols = get_col_from_baz(table);
-  const col_set cols = filter_continuous_cols(table);
+//   const col_set cols = filter_continuous_cols(table);
+  const col_set cols = get_rand_cols(table);
 
-#define OUTPUT_RATIO 1
+  for (unsigned int i = 0; i < cols.size(); ++i)
+    printf("%s\n", table.col_names[cols[i]].c_str());
 
-  const unsigned int output_index = table.col_count - 1;
+#define OUTPUT_RATIO 5
+#define CONFIG_TRAIN_ROW_COUNT 1000
 
   // transform the claim amount
+  const unsigned int output_index = cols.size() - 1;
   for (unsigned int i = 0; i < table.row_count; ++i)
   {
-    if (table.rows[i][output_index] > 2000)
-      table.rows[i][output_index] = 2001;
-
-    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+    double& value = at(table, cols, i, output_index);
+    if (value > 2000) value = 2001;
+    value = ::round(value / OUTPUT_RATIO);
   }
 
-  unsigned int train_row_count = 5000;
+  unsigned int train_row_count = CONFIG_TRAIN_ROW_COUNT;
   if (train_row_count > table.row_count)
     train_row_count = table.row_count;
 
@@ -224,21 +265,20 @@ static void train(int ac, char** av)
   // var0, var1 .. varN, class
 
   alglib::real_2d_array x;
-  x.setlength(train_row_count, ncols(table, cols) + 1);
+  x.setlength(train_row_count, ncols(table, cols));
 
   for (unsigned int i = 0; i < train_row_count; ++i)
   {
     for (unsigned int j = 0; j < ncols(table, cols); ++j)
       x(i, j) = at(table, cols, i, j);
-    x(i, ncols(table, cols)) = table.rows[i][output_index];
   }
 
   // create nn
 
-  const unsigned int nclasses = max(table, output_index) + 1;
+  const unsigned int nclasses = max(table, cols, output_index) + 1;
 
-  const alglib::ae_int_t nin = ncols(table, cols);
-  const alglib::ae_int_t nhid1 = 25;
+  const alglib::ae_int_t nin = ncols(table, cols) - 1; // output not part
+  const alglib::ae_int_t nhid1 = 20;
   const alglib::ae_int_t nout = nclasses;
 
   alglib::multilayerperceptron net;
@@ -255,7 +295,7 @@ static void train(int ac, char** av)
   // for each column, compute mean and std dev
   alglib::real_1d_array samples;
   samples.setlength(train_row_count);
-  for (unsigned int i = 0; i < ncols(table, cols); ++i)
+  for (unsigned int i = 0; i < ncols(table, cols) - 1; ++i)
   {
     // build samples
     for (unsigned int j = 0; j < train_row_count; ++j)
@@ -293,6 +333,38 @@ static void train(int ac, char** av)
 }
 
 
+static unsigned int find_col(const table& table, const std::string& name)
+{
+  for (unsigned int i = 0; i < table.col_count; ++i)
+    if (table.col_names[i] == name) return i;
+  return (unsigned int)-1;
+}
+
+#include <fstream>
+
+static col_set read_col_file(table& table, const std::string& filename)
+{
+  std::ifstream ifs;
+  ifs.open(filename.c_str(), std::ifstream::in);
+  if (ifs.is_open() == false)
+  {
+    printf("[!] ifs.open()\n");
+    exit(-1);
+  }
+
+  col_set cs;
+
+  while (1)
+  {
+    std::string line;
+    std::getline(ifs, line);
+    if (line.size() == 0) break ;
+    cs.push_back(find_col(table, line));
+  }
+
+  return cs;
+}
+
 static void eval(int ac, char** av)
 {
   alglib::multilayerperceptron net;
@@ -302,43 +374,53 @@ static void eval(int ac, char** av)
   table_create(table);
   table_read_csv_file(table, av[1], true);
 
-  // prune the table
-//   const col_set cols = filter_cols(table);
-//   const col_set cols = get_col_from_baz(table);
-  const col_set cols = filter_continuous_cols(table);
-
-  const unsigned int output_index = table.col_count - 1;
-
-  // transform the claim amount
-  for (unsigned int i = 0; i < table.row_count; ++i)
+  col_set cols;
+  if (ac > 2)
   {
-    if (table.rows[i][output_index] > 2000)
-      table.rows[i][output_index] = 2001;
-    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+    // read the column file
+    cols = read_col_file(table, av[2]);
+  }
+  else
+  {
+    // static column allocation
+
+    // const col_set cols = filter_cols(table);
+    // const col_set cols = get_col_from_baz(table);
+    col_set cols = filter_continuous_cols(table);
   }
 
-  unsigned int train_row_count = 5000;
+  // transform the claim amount
+  const unsigned int output_index = cols.size() - 1;
+  for (unsigned int i = 0; i < table.row_count; ++i)
+  {
+    double& value = at(table, cols, i, output_index);
+    if (value > 2000) value = 2001;
+    value = ::round(value / OUTPUT_RATIO);
+  }
+
+  unsigned int train_row_count = CONFIG_TRAIN_ROW_COUNT;
   if (train_row_count > table.row_count)
     train_row_count = table.row_count;
 
   // classify
 
   alglib::real_1d_array estims;
-  const unsigned int nclasses = max(table, output_index);
+  const unsigned int nclasses = max(table, output_index) + 1;
   estims.setlength(nclasses);
 
   alglib::real_1d_array input;
-  const unsigned int nin = ncols(table, cols);
+  const unsigned int nin = ncols(table, cols) - 1;
   input.setlength(nin);
 
-  unsigned int hits = 0;
+  unsigned int sum = 0;
+  for (unsigned int i = 0; i < train_row_count; ++i)
 //   for (unsigned int i = train_row_count; i < train_row_count + 100; ++i)
-//   for (unsigned int i = train_row_count; i < table.row_count; ++i)
+//   for (unsigned int i = 0; i < table.row_count; ++i)
 //   for (unsigned int i = 0; i < train_row_count + 1000; ++i)
-  for (unsigned int i = 0; i < train_row_count + 1000; ++i)
+//   for (unsigned int i = 0; i < train_row_count + 1000; ++i)
 //   for (unsigned int i = train_row_count; i < train_row_count + 5000; ++i)
   {
-    const unsigned int klass = (unsigned int)table.rows[i][output_index];
+    const unsigned int klass = (unsigned int)at(table, cols, i, output_index);
 
     for (unsigned int j = 0; j < (unsigned int)nin; ++j)
       input(j) = at(table, cols, i, j);
@@ -354,18 +436,24 @@ static void eval(int ac, char** av)
       if (estims[j] >= estims[klass]) ++rank;
     }
 
+#if 0
     if (k == klass) ++hits;
-
-    // print the class
     printf("%u %u (estims[k] = %lf, estims[true] = %lf) rank = %u\n",
 	   klass, k, estims[k], estims[klass], rank);
+#endif
+
+    sum += abs((int)k - (int)klass);
   }
 
+#if 0
   printf("\n");
   printf("hits: %u\n", hits);
   for (unsigned int i = 0; i < ncols(table, cols); ++i)
     printf(" %u", cols[i]);
   printf("\n");
+#endif
+
+  printf("%u\n", sum);
 
   table_destroy(table);
 }
@@ -388,9 +476,9 @@ static void hist(int ac, char** av)
 
   // transform the claim amount
   for (unsigned int i = 0; i < table.row_count; ++i)
-    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+    table.rows[i][output_index] = ::round(table.rows[i][output_index] / OUTPUT_RATIO);
 
-  unsigned int train_row_count = 1000;
+  unsigned int train_row_count = CONFIG_TRAIN_ROW_COUNT;
   if (train_row_count > table.row_count)
     train_row_count = table.row_count;
 
@@ -476,7 +564,7 @@ static int load_table(table& table, const std::string& filename, col_set& cols)
 
   // transform the claim amount
   for (unsigned int i = 0; i < table.row_count; ++i)
-    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+    table.rows[i][output_index] = ::round(table.rows[i][output_index] / OUTPUT_RATIO);
 
   return 0;
 }
@@ -484,7 +572,7 @@ static int load_table(table& table, const std::string& filename, col_set& cols)
 
 static void moments
 (
- const table& table, const col_set& cols, unsigned int nrows,
+ table& table, const col_set& cols, unsigned int nrows,
  std::vector<double>& means, std::vector<double>& vars
 )
 {
@@ -704,7 +792,7 @@ static void eval_ensemble_fu(int ac, char** av)
 
   // transform the claim amount
   for (unsigned int i = 0; i < table.row_count; ++i)
-    table.rows[i][output_index] = ::floor(table.rows[i][output_index] / OUTPUT_RATIO);
+    table.rows[i][output_index] = ::round(table.rows[i][output_index] / OUTPUT_RATIO);
 
   unsigned int train_row_count = 10000;
   if (train_row_count > table.row_count)

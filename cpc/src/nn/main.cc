@@ -46,7 +46,7 @@ static void normalize_input(table& table)
 static void normalize_output(table& table, double& max)
 {
   for (unsigned int i = 0; i < table.row_count; ++i)
-    table.rows[i][0] = floor(table.rows[i][0]);
+    table.rows[i][0] = round(table.rows[i][0]);
 
   max = 0;
   for (unsigned int i = 0; i < table.row_count; ++i)
