@@ -38,6 +38,12 @@ void table_set_column_names
   table.col_names = names;
 }
 
+void table_set_map_funcs
+(table& table, const std::vector<table::map_func_type>& funcs)
+{
+  table.map_funcs = funcs;
+}
+
 int table_map_value
 (table& table, unsigned int col, const table::data_type& key, std::string& val)
 {
@@ -186,6 +192,7 @@ static inline bool is_eof(char c)
   return c == ',' || c == '\n';
 }
 
+__attribute__((unused))
 static int next_real
 (table& table, mapped_file_t& mf, unsigned int col, table::data_type& value)
 {
@@ -197,6 +204,7 @@ static int next_real
   return 0;
 }
 
+__attribute__((unused))
 static int next_string
 (table& table, mapped_file_t& mf, unsigned int col, table::data_type& value)
 {
@@ -238,6 +246,19 @@ static int next_string
   return 0;
 }
 
+static int next_string
+(table& table, mapped_file_t& mf, std::string& str)
+{
+  // get the string mf.base[mf.off:j]
+  unsigned int j = mf.off;
+  for (; (j < mf.len) && !is_eof(mf.base[j]); ++j) ;
+  const char* const s = (const char*)mf.base + mf.off;
+  const unsigned int len = j - mf.off;
+  mf.off = j + (j == mf.len ? 0 : 1);
+  str = std::string(s, len);
+  return 0;
+}
+
 static int next_value
 (table& table, mapped_file_t& mf, unsigned int col, table::data_type& value)
 {
@@ -253,16 +274,19 @@ static int next_value
     if (mf.off != mf.len) ++mf.off;
     return 0;
   }
-  else if (table.col_types[col] == table::REAL)
-  {
-    return next_real(table, mf, col, value);
-  }
   else
   {
-    return next_string(table, mf, col, value);
+    std::string s;
+    next_string(table, mf, s);
+    value = table.map_funcs[col](s.c_str());
   }
 
   return 0;
+}
+
+static double map_real(const char* s)
+{
+  return strtod(s, NULL);
 }
 
 int table_read_csv_file
@@ -315,7 +339,10 @@ int table_read_csv_file
   {
     table.col_types.resize(table.col_count);
     for (unsigned int i = 0; i < table.col_count; ++i)
+    {
       table.col_types[i] = table::REAL;
+      table.map_funcs[i] = map_real;
+    }
   }
 
   table.col_maps.resize(table.col_count);
@@ -362,7 +389,7 @@ int table_read_csv_file
 
     if ((table.row_count % 100000) == 0)
     {
-      printf("%u\n", table.row_count);
+      printf("%lu\n", table.row_count);
       fflush(stdout);
     }
   }

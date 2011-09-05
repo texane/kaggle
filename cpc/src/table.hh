@@ -22,7 +22,7 @@ typedef struct table
   // types
   typedef double data_type;
   typedef std::vector<data_type> row_type;
-  static const data_type invalid_value = 24242424242;
+  static const data_type invalid_value = -99;
   static const data_type min_inf = -24242424242;
 
   // data rows
@@ -31,9 +31,11 @@ typedef struct table
   // cached counts
   size_t row_count, col_count;
 
-  // column names, types
+  // column names, types, mapping functions
   std::vector<std::string> col_names;
   std::vector<col_type> col_types;
+  typedef double (*map_func_type)(const char*);
+  std::vector<map_func_type> map_funcs;
 
   // column map
   std::vector< std::map<data_type, std::string> > col_maps;
@@ -45,6 +47,7 @@ int table_create(table&);
 void table_destroy(table&);
 void table_set_column_types(table&, const std::vector<table::col_type>&);
 void table_set_column_names(table&, const std::vector<std::string>&);
+void table_set_map_funcs(table&, const std::vector<table::map_func_type>&);
 int table_map_value(table&, unsigned int, const table::data_type&, std::string& );
 int table_read_csv_file(table&, const char*, bool = false);
 int table_write_csv_file(const table&, const char*);
