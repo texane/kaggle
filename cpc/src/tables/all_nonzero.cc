@@ -19,7 +19,7 @@ int table_write_csv_file
   if (fd == -1) return -1;
 
   // write names
-  static const char* const names =
+  static const char names[] =
     "Row_ID,Household_ID,Vehicle,Calendar_Year,Model_Year,"
     "Blind_Make,Blind_Model,Blind_Submodel,"
     "Cat1,Cat2,Cat3,Cat4,Cat5,Cat6,Cat7,Cat8,Cat9,Cat10,Cat11,Cat12,OrdCat,"
