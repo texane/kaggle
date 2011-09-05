@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <math.h>
 #include <string.h>
 #include <sys/types.h>
 #include "table.hh"
@@ -34,8 +35,9 @@ int table_write_csv_file
     size_t len = 0;
     for (j = 0; j < ncol; ++j)
     {
-      const double value = data[i * ncol + j];
+      double value = data[i * ncol + j];
       if (value == table::invalid_value) break ;
+      if (j == (ncol - 1)) value = ::round(value);
       len += sprintf(buf + len, "%lf,", value);
     }
 
@@ -63,7 +65,7 @@ int main(int ac, char** av)
     return -1;
   }
 
-  table_write_csv_file(data, nrows, ncols, "../../data/all_nonzero.csv");
+  table_write_csv_file(data, nrows, ncols, "../../data/all_valid_nonzero.csv");
 
   return 0;
 }

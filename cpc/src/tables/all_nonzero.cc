@@ -34,7 +34,8 @@ int table_write_csv_file
     size_t len = 0;
     for (j = 0; j < ncol; ++j)
     {
-      const double value = data[i * ncol + j];
+      double value = data[i * ncol + j];
+      if (j == (ncol - 1)) value = ::round(value);
       len += sprintf(buf + len, "%lf,", value);
     }
 
