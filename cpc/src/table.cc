@@ -338,6 +338,7 @@ int table_read_csv_file
   if (table.col_types.size() == 0)
   {
     table.col_types.resize(table.col_count);
+    table.map_funcs.resize(table.col_count);
     for (unsigned int i = 0; i < table.col_count; ++i)
     {
       table.col_types[i] = table::REAL;
@@ -387,11 +388,13 @@ int table_read_csv_file
 
     ++table.row_count;
 
+#if 0
     if ((table.row_count % 100000) == 0)
     {
-      printf("%lu\n", table.row_count);
+      printf("%u\n", (unsigned int)table.row_count);
       fflush(stdout);
     }
+#endif
   }
 
   // success
